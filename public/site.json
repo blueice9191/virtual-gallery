@@ -1,0 +1,10 @@
+{
+  "name": "Open Gallery",
+  "subtitle": "A space for visual art",
+  "logo": "/gg.svg",
+  "sky": "",
+  "margin": "none",
+  "cloudName": "",
+  "source": "cloudinary",
+  "statueSeed": 0
+}

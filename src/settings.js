@@ -1,0 +1,8 @@
+export const settingsKey='grant-gallery-settings-v1';
+export const defaultSettings={name:'Open Gallery',subtitle:'A space for visual art',logo:'/gg.svg',sky:'',margin:'none',source:'cloudinary',cloudName:'',catalogUrl:'',statueSeed:0};
+export function normalizeSettings(value={},base=defaultSettings){
+  const text=(value,fallback,max)=>typeof value==='string'?value.trim().slice(0,max):fallback;
+  const logo=typeof value.logo==='string'&&(/^\/(?!\/)/.test(value.logo)||/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(value.logo))?value.logo:base.logo;
+  return {statueSeed:Number.isInteger(value.statueSeed)&&value.statueSeed>=0&&value.statueSeed<=4294967295?value.statueSeed:base.statueSeed||0,source:value.source==='local'?'local':value.source==='cloudinary'?'cloudinary':base.source||'cloudinary',cloudName:/^[a-z0-9_-]+$/i.test(value.cloudName||'')?value.cloudName:base.cloudName||'',catalogUrl:typeof value.catalogUrl==='string'&&(/^(https:\/\/|\/(?!\/))/.test(value.catalogUrl)||value.catalogUrl==='')?value.catalogUrl:base.catalogUrl||'',margin:['none','narrow','wide'].includes(value.margin)?value.margin:base.margin||'none',name:text(value.name,base.name,60)||base.name,subtitle:text(value.subtitle,base.subtitle,100),logo,sky:['','6.5','12','18','23'].includes(String(value.sky??base.sky))?String(value.sky??base.sky):base.sky};
+}
+export function readSettings(storage,base){try{return normalizeSettings(JSON.parse(storage.getItem(settingsKey)||'{}'),base);}catch{return {...base};}}

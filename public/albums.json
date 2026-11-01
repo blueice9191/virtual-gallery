@@ -1,0 +1,54 @@
+{
+  "albums": [
+    {
+      "id": "album-Color Studies",
+      "name": "Color Studies",
+      "photoIds": [
+        "study-01",
+        "study-02",
+        "study-03",
+        "study-04",
+        "study-05",
+        "study-06",
+        "study-07",
+        "study-08",
+        "study-09",
+        "study-10",
+        "study-11",
+        "study-12"
+      ]
+    },
+    {
+      "id": "album-Ink Studies",
+      "name": "Ink Studies",
+      "photoIds": [
+        "study-13",
+        "study-14",
+        "study-15",
+        "study-16",
+        "study-17",
+        "study-18",
+        "study-19",
+        "study-20",
+        "study-21",
+        "study-22",
+        "study-23",
+        "study-24"
+      ]
+    },
+    {
+      "id": "album-Panorama_Abstract",
+      "name": "Panorama_Abstract",
+      "photoIds": [
+        "study-25",
+        "study-26",
+        "study-27",
+        "study-28",
+        "study-29",
+        "study-30",
+        "study-31",
+        "study-32"
+      ]
+    }
+  ]
+}
