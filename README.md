@@ -23,10 +23,11 @@ Install Node.js **22.12 or newer**, then:
 git clone https://github.com/blueice9191/grant-gallery.git
 cd grant-gallery
 npm ci
+npm run build
 npm start
 ```
 
-Open **http://127.0.0.1:5180/**. The server builds automatically if needed. On Windows you can also use `START_MUSEUM.cmd` after installing dependencies. If port 5180 is occupied, set `MUSEUM_PORT` to another port before starting.
+Open **http://127.0.0.1:5180/**. Build once before starting the server, and rebuild after source or catalog changes. On Windows you can also use `START_MUSEUM.cmd` after installing dependencies. If port 5180 is occupied, set `MUSEUM_PORT` to another port before starting.
 
 For development, use `npm run dev`; for a production build, `npm run build`. Live Cloudinary administration requires `npm start`, not the Vite development server. Run `npm run build` before `npm test`, because server tests inspect built assets.
 
