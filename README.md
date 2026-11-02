@@ -112,3 +112,6 @@ The launch introduction has no collection-specific tagline. Close-up and Collect
 
 
 Frame Settings offers pearl white (warm cream), silver, and black with a 4 cm border, half the previous width. New site defaults are pearl white and wide white mat. Saved browser margin preferences remain in effect; Reset to site defaults applies the new presentation. Albums remain borderless.
+
+
+Albums open directly overhead with undistorted rectangular pages. Up/Down arrows adjust a centered camera orbit from 0° (overhead) to 30° tilt, in 3° steps; Left/Right still turn pages. Opening any album resets to overhead. Closing restores the walking pose. The camera refits the open book on screen resize.
