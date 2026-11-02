@@ -245,7 +245,7 @@ $('sky-preview').onchange=()=>{settings.sky=$('sky-preview').value;skySystem?.se
 $('home').onclick = e => { e.preventDefault(); if (camera&&!exhibitionLoading) { enter(); gotoRoom('atrium'); } };
 $('filters').onclick = e => { const b = e.target.closest('[data-filter]'); if (!b) return; state.filter = b.dataset.filter; $('filters').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); renderCollection(); };
 function enter() { if (!renderer||exhibitionLoading) return; state.entered = true; $('hud').hidden = false; $('scene').focus({ preventScroll: true }); }
-setupFullscreen(document,$('fullscreen-button'),toast);
+setupFullscreen(document,$('fullscreen-button'),toast,{exitButton:$('exit-fullscreen'),edge:$('fullscreen-edge')});
 $('new-visit').onclick = async () => {
   pause(); $('new-visit').disabled = true;
   try { state.visit = createVisit(catalog); saveVisit();tour.stop();tourRejoin=[];applyExhibitionLabels();buildMap();await hangPhotos(); toast('A new visit. New folder exhibitions and artwork placements are ready.'); }

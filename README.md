@@ -126,3 +126,6 @@ Page turns use a paper sheet with separately fitted front and reverse images. Th
 
 
 The gallery enters automatically after preloading, without a welcome card. Full screen beside New Visit toggles native fullscreen and exit; Escape also exits on supported desktop browsers. Browser support varies, especially on iPhone; unsupported requests show a message. Settings select text is 17 px. Mobile favorites-panel images load up to a 2048 px bounding box while other nearby wall images stay at 768 px.
+
+
+Native fullscreen hides the gallery navigation. Move the pointer to the top edge or tap it to reveal a black × exit button; touch reveal lasts 3.5 seconds. Keyboard focus also reveals the button, and native Escape exit restores normal navigation.
