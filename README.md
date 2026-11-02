@@ -1,4 +1,4 @@
-# Grant Gallery
+# Virtual Gallery
 
 A walkable, browser-based museum for **photography, drawings, paintings, calligraphy, illustrations, and other visual art**. Bring digital images of your work and let visitors explore an exhibition rather than scroll through an album.
 
@@ -6,6 +6,7 @@ The building has a twelve-sided ring with flat gallery walls, an open atrium, an
 
 ## What visitors can do
 
+- Enjoy immersive fullscreen viewing with the navigation hidden; hover or tap the top edge to reveal the exit button, or press Escape where supported.
 - Walk between galleries with keyboard/mouse or two transparent touch joysticks.
 - Click artwork for a close-up with optional title, description, date, and location.
 - Read physical albums on the atrium desk and click either side to turn pages.
@@ -20,8 +21,8 @@ Mobile rendering uses smaller textures, bounded nearby-display loading, and ligh
 Install Node.js **22.12 or newer**, then:
 
 ```sh
-git clone https://github.com/blueice9191/grant-gallery.git
-cd grant-gallery
+git clone https://github.com/blueice9191/virtual-gallery.git
+cd virtual-gallery
 npm ci
 npm run build
 npm start
