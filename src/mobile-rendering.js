@@ -1,3 +1,4 @@
+export const wallTextureSize=entry=>entry?.slot.area==='favorites'?2048:768;
 export function imageURL(photo,maxSize){
   const src=photo.displaySrc||photo.src;
   if(!/^https:\/\/res\.cloudinary\.com\//.test(src))return src;
@@ -17,7 +18,7 @@ export function createWallStream(load,release,concurrency=2){
       if(active>=concurrency)break;
       if(!wanted.has(entry)||loaded.has(entry)||pending.has(entry)||failed.has(entry))continue;
       active++;pending.add(entry);
-      Promise.resolve().then(()=>load(entry.photo)).then(texture=>{
+      Promise.resolve().then(()=>load(entry.photo,entry)).then(texture=>{
         if(disposed||!wanted.has(entry)){release(texture);return;}
         loaded.set(entry,texture);entry.material.map=texture;entry.material.needsUpdate=true;entry.group.visible=true;
       }).catch(()=>{failed.add(entry);}).finally(()=>{active--;pending.delete(entry);pump();});

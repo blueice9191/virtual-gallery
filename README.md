@@ -71,6 +71,8 @@ Cloudinary credentials stay in server memory, or can be supplied through server 
 
 You can use any image host by editing `public/gallery.json`, or providing a public catalog URL in Settings. A public catalog and images must be reachable by visitors and allow cross-origin access when hosted elsewhere. See [catalog format and metadata](docs/COLLECTIONS.md). Albums are generated from catalog folders at runtime.
 
+For the complete manual workflow, see [Updating and publishing without Codex](docs/PUBLISHING.md).
+
 ## Customize and deploy your own gallery
 
 Change Settings, then **Export configuration** and replace `public/site.json` to make those choices defaults for everyone. Browser-only changes do not alter the published defaults. The included neutral identity is Open Gallery; use your own name and logo.
@@ -121,3 +123,6 @@ New Visit, tour controls, speed, and Mouse Look share the top navigation before 
 
 
 Page turns use a paper sheet with separately fitted front and reverse images. The next underlying page is prepared before motion begins; the final spread is committed before the turning sheet disappears. Image proportions and borders stay constant through forward and backward turns.
+
+
+The gallery enters automatically after preloading, without a welcome card. Full screen beside New Visit toggles native fullscreen and exit; Escape also exits on supported desktop browsers. Browser support varies, especially on iPhone; unsupported requests show a message. Settings select text is 17 px. Mobile favorites-panel images load up to a 2048 px bounding box while other nearby wall images stay at 768 px.

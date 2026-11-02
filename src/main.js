@@ -1,7 +1,8 @@
+import {setupFullscreen} from './fullscreen.js';
 import {bookCameraPose,maxBookTilt} from './book-camera.js';
 import {frameStyles,frameBorder} from './frames.js';
 import {artworkTitle} from './artwork-title.js';
-import {imageURL,nearbyDisplays,createWallStream} from './mobile-rendering.js';
+import {imageURL,nearbyDisplays,createWallStream,wallTextureSize} from './mobile-rendering.js';
 import { createSources,albumsFromCatalog,validateCatalog } from './sources.js';
 import { createTouchSticks } from './touch-sticks.js';
 import { preloadPhotos } from './preload.js';
@@ -57,7 +58,7 @@ function box(w, h, d, x, y, z, mat, parent = scene) {
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
   mesh.position.set(x, y, z); mesh.receiveShadow = true; mesh.castShadow = true; parent.add(mesh); return mesh;
 }
-async function loadMobileTexture(photo){const tex=await new THREE.TextureLoader().loadAsync(imageURL(photo,768));tex.colorSpace=THREE.SRGBColorSpace;tex.generateMipmaps=false;tex.minFilter=THREE.LinearFilter;tex.anisotropy=1;return tex;}
+async function loadMobileTexture(photo,entry){const tex=await new THREE.TextureLoader().loadAsync(imageURL(photo,wallTextureSize(entry)));tex.colorSpace=THREE.SRGBColorSpace;tex.generateMipmaps=false;tex.minFilter=THREE.LinearFilter;tex.anisotropy=1;return tex;}
 async function getTexture(photo) {
   if(mobile)return loadMobileTexture(photo);
   if (textureCache.has(photo.id)) return textureCache.get(photo.id);
@@ -243,8 +244,8 @@ $('photo-margin').onchange=async()=>{settings.margin=$('photo-margin').value;per
 $('sky-preview').onchange=()=>{settings.sky=$('sky-preview').value;skySystem?.setPreview(settings.sky===''?null:Number(settings.sky));persistSettings();};
 $('home').onclick = e => { e.preventDefault(); if (camera&&!exhibitionLoading) { enter(); gotoRoom('atrium'); } };
 $('filters').onclick = e => { const b = e.target.closest('[data-filter]'); if (!b) return; state.filter = b.dataset.filter; $('filters').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); renderCollection(); };
-function enter() { if (!renderer||exhibitionLoading) return; state.entered = true; $('welcome').hidden = true; $('hud').hidden = false; $('scene').focus({ preventScroll: true }); }
-$('enter').onclick = enter;
+function enter() { if (!renderer||exhibitionLoading) return; state.entered = true; $('hud').hidden = false; $('scene').focus({ preventScroll: true }); }
+setupFullscreen(document,$('fullscreen-button'),toast);
 $('new-visit').onclick = async () => {
   pause(); $('new-visit').disabled = true;
   try { state.visit = createVisit(catalog); saveVisit();tour.stop();tourRejoin=[];applyExhibitionLabels();buildMap();await hangPhotos(); toast('A new visit. New folder exhibitions and artwork placements are ready.'); }
@@ -367,7 +368,7 @@ async function boot() {
   await hangPhotos();setupAlbums();bindScene();sticks=createTouchSticks(()=>{tour.pause();updateTourUI();state.path=[];targetMarker.visible=false;});updateCamera();
   window.museumBooted = true;
   clearTimeout(window.museumStartupTimer);
-  $('enter').disabled = false; $('enter').textContent = 'Enter the gallery →';
+  enter();
   window.addEventListener('resize', () => { camera.fov = innerWidth < 800 ? 80 : 66; camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight);if(state.reading)applyBookCamera(); });
   renderer.setAnimationLoop(animate);
   // Read-only state is useful for diagnosing movement and session stability.
@@ -450,4 +451,4 @@ $('albums-button').onclick=()=>showDialog('albums-dialog');
 $('go-desk').onclick=()=>{closeDialog('albums-dialog');enter();pause();camera.position.set(innerWidth<800?-3.7:-4.15,EYE,-1.1);state.yaw=Math.PI;state.pitch=-.03;updateCamera();updateLocation();};
 $('book-prev').onclick=()=>books.turn(-1);$('book-next').onclick=()=>books.turn(1);$('book-close').onclick=()=>books.close();
 for(let i=0;i<2;i++)$(`book-photo-${i}`).onclick=()=>{const id=books.reader.pages[i],photo=catalog.photos.find(p=>p.id===id);if(photo)openPhoto(photo);};
-boot().catch(error => { clearTimeout(window.museumStartupTimer); console.error(error); $('error').hidden = false; $('welcome').hidden = true; $('error-detail').textContent = `${error.message} Use a current browser with WebGL 2 enabled, and launch the museum through its local server.`; });
+boot().catch(error => { clearTimeout(window.museumStartupTimer); console.error(error); $('error').hidden = false; $('error-detail').textContent = `${error.message} Use a current browser with WebGL 2 enabled, and launch the museum through its local server.`; });
