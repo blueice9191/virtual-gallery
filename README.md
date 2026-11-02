@@ -118,3 +118,6 @@ Albums open directly overhead with undistorted rectangular pages. Up/Down arrows
 
 
 New Visit, tour controls, speed, and Mouse Look share the top navigation before Collection. Narrow screens allow horizontal scrolling through the navigation. The bottom walking hint row is removed; album controls sit flush at the bottom, and the album camera reserves measured space for both navigation and controls to keep the book unobstructed.
+
+
+Page turns use a paper sheet with separately fitted front and reverse images. The next underlying page is prepared before motion begins; the final spread is committed before the turning sheet disappears. Image proportions and borders stay constant through forward and backward turns.
