@@ -3,8 +3,9 @@
   "subtitle": "A space for visual art",
   "logo": "/gg.svg",
   "sky": "",
-  "margin": "none",
+  "margin": "wide",
   "cloudName": "",
   "source": "cloudinary",
-  "statueSeed": 0
+  "statueSeed": 0,
+  "frameColor": "pearl"
 }

@@ -1,3 +1,4 @@
+import {frameStyles,frameBorder} from './frames.js';
 import {artworkTitle} from './artwork-title.js';
 import {imageURL,nearbyDisplays,createWallStream} from './mobile-rendering.js';
 import { createSources,albumsFromCatalog,validateCatalog } from './sources.js';
@@ -80,7 +81,7 @@ async function hangPhotos() {
 
     const geometry=printGeometry(photo,slot,settings.margin),w=geometry.width,h=geometry.height;
     const group = new THREE.Group(); group.position.set(slot.x, slot.y, slot.z); group.rotation.y = Math.atan2(slot.normal.x, slot.normal.z); scene.add(group); artworkGroups.push(group);
-    box(geometry.outerWidth + .16, geometry.outerHeight + .16, .09, 0, 0, 0, material('#33392f'), group);
+    const frameStyle=frameStyles[settings.frameColor];const frame=box(geometry.outerWidth+2*frameBorder,geometry.outerHeight+2*frameBorder,.09,0,0,0,material(frameStyle.color,frameStyle),group);frame.userData.artFrame=true;
     if(geometry.mat)box(geometry.outerWidth,geometry.outerHeight,.012,0,0,.051,new THREE.MeshBasicMaterial({color:'#ffffff'}),group);
     const image = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({map:texture})); image.position.z = .064; image.userData.photo = photo; image.userData.location = locationLabel; image.userData.sequenceIds = assignments.filter(a=>a.slot.room===slot.room&&a.slot.area===slot.area).map(a=>a.photo.id); group.add(image); artMeshes.push(image);if(mobile){group.visible=false;streamEntries.push({slot,photo,group,material:image.material});}
 
@@ -177,7 +178,7 @@ $('map-button').onclick = () => { mapFloor=floorAt(camera.position.y-EYE);buildM
 $('collection-button').onclick = () => { renderCollection(); showDialog('collection-dialog'); };
 $('help-button').onclick = () => showDialog('help-dialog');
 $('settings-button').onclick=()=>{fillSettings();showDialog('settings-dialog');};
-function fillSettings(){ $('gallery-name').value=settings.name;$('gallery-subtitle').value=settings.subtitle;$('gallery-logo').value='';pendingLogo=settings.logo;$('sky-preview').value=settings.sky;$('photo-margin').value=settings.margin;$('settings-status').textContent='';fillSourceSettings(); }
+function fillSettings(){ $('gallery-name').value=settings.name;$('gallery-subtitle').value=settings.subtitle;$('gallery-logo').value='';pendingLogo=settings.logo;$('sky-preview').value=settings.sky;$('photo-margin').value=settings.margin;$('frame-color').value=settings.frameColor;$('settings-status').textContent='';fillSourceSettings(); }
 function fillSourceSettings(){
   $('photo-source').value=settings.source;$('source-cloud-name').value=settings.cloudName;$('source-catalog-url').value=settings.catalogUrl;showSourceOptions();
   $('source-status').textContent=catalog?`${catalog.photos.length} artworks loaded · ${settings.source==='local'?(catalog.sourceName||'Local collection'):'Online collection'}`:'Choose a source to open the gallery.';
@@ -234,6 +235,7 @@ $('settings-form').onsubmit=e=>{e.preventDefault();settings=normalizeSettings({.
 $('regenerate-statue').onclick=()=>{settings.statueSeed=(settings.statueSeed+1)>>>0;updateStatue?.(settings.statueSeed);if(persistSettings())$('statue-status').textContent='New statue saved in this browser.';};
 $('export-settings').onclick=()=>{const blob=new Blob([JSON.stringify(settings,null,2)+'\n'],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='site.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
 $('reset-settings').onclick=async()=>{const wasLocal=settings.source==='local';settings={...siteDefaults};applyBranding();updateStatue?.(settings.statueSeed);fillSettings();skySystem?.setPreview(settings.sky===''?null:Number(settings.sky));try{if(pendingSourceBoot||wasLocal){const response=await fetch('/gallery.json',{cache:'no-store'});if(!response.ok)throw Error('The default catalog is unavailable.');await acceptSource(await response.json(),'cloudinary');}else if(catalog&&renderer)await hangPhotos();if(persistSettings())$('settings-status').textContent='Site defaults restored.';}catch(error){$('settings-status').textContent=error.message;}};
+$('frame-color').onchange=()=>{settings.frameColor=$('frame-color').value;const style=frameStyles[settings.frameColor];for(const group of artworkGroups)group.traverse(o=>{if(o.userData.artFrame){o.material.color.set(style.color);o.material.metalness=style.metalness;o.material.roughness=style.roughness;}});persistSettings();};
 $('photo-margin').onchange=async()=>{settings.margin=$('photo-margin').value;persistSettings();await hangPhotos();};
 $('sky-preview').onchange=()=>{settings.sky=$('sky-preview').value;skySystem?.setPreview(settings.sky===''?null:Number(settings.sky));persistSettings();};
 $('home').onclick = e => { e.preventDefault(); if (camera&&!exhibitionLoading) { enter(); gotoRoom('atrium'); } };
