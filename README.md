@@ -115,3 +115,6 @@ Frame Settings offers pearl white (warm cream), silver, and black with a 4 cm bo
 
 
 Albums open directly overhead with undistorted rectangular pages. Up/Down arrows adjust a centered camera orbit from 0° (overhead) to 30° tilt, in 3° steps; Left/Right still turn pages. Opening any album resets to overhead. Closing restores the walking pose. The camera refits the open book on screen resize.
+
+
+New Visit, tour controls, speed, and Mouse Look share the top navigation before Collection. Narrow screens allow horizontal scrolling through the navigation. The bottom walking hint row is removed; album controls sit flush at the bottom, and the album camera reserves measured space for both navigation and controls to keep the book unobstructed.

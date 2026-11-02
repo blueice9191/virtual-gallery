@@ -26,3 +26,16 @@
 @media(pointer:coarse),(any-pointer:coarse),(max-width:1100px){.dual-sticks{display:flex}.touch-controls{display:none}}
 [data-reading=true] .dual-sticks,body:has(dialog[open]) .dual-sticks{display:none!important}
 @media(max-height:500px){.dual-sticks{bottom:76px}.touch-stick{width:104px;height:104px}.stick-knob{width:40px;height:40px}}
+
+/* Navigation stays above the scene; the album owns the former bottom toolbar. */
+.topbar{flex-wrap:wrap;padding:14px 24px;gap:10px 20px;z-index:3}
+.topbar nav{align-items:center;flex-wrap:wrap;justify-content:flex-end;gap:4px;max-width:100%}
+.topbar nav button,.topbar #tour-speed{font-size:12px;padding:10px}
+#book-reader{left:0;right:0;bottom:0;padding:10px 18px calc(10px + env(safe-area-inset-bottom));gap:8px 20px;z-index:2}
+#book-reader h2{font-size:17px}#book-reader p{font-size:12px;margin-top:2px}
+#app[data-reading=true] .location{display:none}
+.location{top:calc(var(--toolbar-height,94px) + 18px)}
+#tour-progress{top:calc(var(--toolbar-height,94px) + 18px)}
+#hover-hint{bottom:28px}
+@media(max-width:1100px){.topbar{padding:10px 16px}.topbar nav{flex:1 1 100%;flex-wrap:nowrap;justify-content:flex-start;overflow-x:auto;padding-bottom:2px}.topbar nav button,.topbar #tour-speed{flex-shrink:0}#book-reader{flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:space-between}.book-controls{gap:4px}.book-controls button{padding:9px;font-size:12px}}
+@media(max-width:520px){.topbar{gap:7px;padding:9px 10px}.topbar nav button,.topbar #tour-speed{font-size:11px;padding:9px}.topbar #mouse-lock{display:none}#book-reader{padding:8px 10px calc(8px + env(safe-area-inset-bottom));gap:6px}.book-controls{width:100%}.book-controls button{font-size:11px;padding:8px}#book-reader h2{font-size:16px}#book-reader p{font-size:11px}}

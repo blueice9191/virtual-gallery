@@ -29,6 +29,7 @@ const raycaster = new THREE.Raycaster(), pointer = new THREE.Vector2();
 const artMeshes = [], floorMeshes = [], occluders = [], artworkGroups = [];
 const textureCache = new Map();
 let photoAssets = createPhotoAssets();
+const toolbarObserver=new ResizeObserver(()=>{document.documentElement.style.setProperty('--toolbar-height',`${document.querySelector('.topbar').getBoundingClientRect().height}px`);if(state.reading)applyBookCamera();});toolbarObserver.observe(document.querySelector('.topbar'));toolbarObserver.observe($('book-reader'));
 const sources=createSources();let sticks,pendingSourceBoot;
 const displayLocations = new Map();
 let viewerRequest = 0;let readingBookPose=null,bookTilt=0;
@@ -119,7 +120,7 @@ function updateLocation(){
   $('location-detail').textContent=state.reading?'Floor 1 · Album open on the desk':onStairs?`Between floors · ${p.y.toFixed(1)} m`:`Floor ${floor+1} · ${room?.subtitle||(floor===2?'Panorama galleries':'Explore at your own pace')}`;
   $('scene').dataset.floor=String(floor+1);$('map-player').setAttribute('cx',p.x*10);$('map-player').setAttribute('cy',p.z*10);$('map-player').style.display=floor===mapFloor?'':'none';
 }
-function applyBookCamera(){if(!readingBookPose)return;const pose=bookCameraPose(readingBookPose,camera.aspect,camera.fov,bookTilt);bookTilt=pose.tilt;camera.position.set(pose.x,pose.y,pose.z);state.yaw=pose.yaw;state.pitch=pose.pitch;updateCamera();$('book-angle').textContent=`View: ${Math.round(bookTilt*180/Math.PI)}° tilt · ↑ overhead / ↓ tilt (max 30°)`;}
+function applyBookCamera(){if(!readingBookPose)return;const top=document.querySelector('.topbar').getBoundingClientRect().height+16,bottom=$('book-reader').hidden?100:$('book-reader').getBoundingClientRect().height+16,safeHeight=Math.max(120,innerHeight-top-bottom),safeFov=2*Math.atan(Math.tan(camera.fov*Math.PI/360)*safeHeight/innerHeight)*180/Math.PI;camera.setViewOffset(innerWidth,innerHeight,0,(bottom-top)/2,innerWidth,innerHeight);const pose=bookCameraPose(readingBookPose,innerWidth/safeHeight,safeFov,bookTilt);bookTilt=pose.tilt;camera.position.set(pose.x,pose.y,pose.z);state.yaw=pose.yaw;state.pitch=pose.pitch;updateCamera();$('book-angle').textContent=`View: ${Math.round(bookTilt*180/Math.PI)}° tilt · ↑ overhead / ↓ tilt (max 30°)`;}
 function updateCamera() { camera.rotation.set(state.pitch, state.yaw, 0, 'YXZ'); }
 function loadVisit() {
   let saved; try { saved = JSON.parse(sessionStorage.getItem(SAVE_KEY)); } catch { /* Storage may be unavailable. */ }
@@ -438,9 +439,9 @@ function advanceTour(dt){
 function setupAlbums(){
   books=createBooks(scene,albums,catalog.photos,getTexture,{
     loading(message){toast(message);},
-    opened(album,bookPose){pause();readingPose={position:camera.position.clone(),yaw:state.yaw,pitch:state.pitch};state.reading=true;$('app').dataset.reading='true';readingBookPose=bookPose;bookTilt=0;applyBookCamera();$('book-reader').hidden=false;$('album-title').textContent=album.name;$('hover-hint').hidden=true;updateLocation();updateTourUI();},
+    opened(album,bookPose){pause();readingPose={position:camera.position.clone(),yaw:state.yaw,pitch:state.pitch};state.reading=true;$('app').dataset.reading='true';readingBookPose=bookPose;bookTilt=0;applyBookCamera();$('book-reader').hidden=false;applyBookCamera();$('album-title').textContent=album.name;$('hover-hint').hidden=true;updateLocation();updateTourUI();},
     changed(reader){if(!reader.album){$('book-reader').hidden=true;return;}$('album-pages').textContent=`Pages ${reader.spread*2+1}–${Math.min(reader.spread*2+2,reader.album.photoIds.length)} of ${reader.album.photoIds.length}`;$('book-prev').disabled=reader.spread===0;$('book-next').textContent=reader.last?'Finish & return book':'Turn page →';for(let i=0;i<2;i++){$(`book-photo-${i}`).disabled=!reader.pages[i];}},
-    closed(){readingBookPose=null;state.reading=false;$('app').dataset.reading='false';$('book-reader').hidden=true;if(readingPose){camera.position.copy(readingPose.position);state.yaw=readingPose.yaw;state.pitch=readingPose.pitch;updateCamera();}updateLocation();updateTourUI();$('scene').focus({preventScroll:true});},
+    closed(){camera.clearViewOffset();readingBookPose=null;state.reading=false;$('app').dataset.reading='false';$('book-reader').hidden=true;if(readingPose){camera.position.copy(readingPose.position);state.yaw=readingPose.yaw;state.pitch=readingPose.pitch;updateCamera();}updateLocation();updateTourUI();$('scene').focus({preventScroll:true});},
   },reduced,mobile);
   $('album-list').replaceChildren();
   for(const album of albums){const b=document.createElement('button');b.className='album-choice';b.textContent=album.name;const detail=document.createElement('span');detail.textContent=`${album.photoIds.length} artworks · Read on the desk`;b.append(detail);b.onclick=()=>{closeDialog('albums-dialog');enter();books.open(album);};$('album-list').append(b);}
