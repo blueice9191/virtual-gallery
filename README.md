@@ -104,3 +104,8 @@ Floor count and polygon side count are implementation choices, not Settings cont
 Code and the included abstract SVG samples are provided under the [MIT License](LICENSE). Third-party dependencies retain their own licenses. Your uploaded artwork remains yours and is not automatically licensed under this project's code license. Only publish artwork you have permission to display.
 
 Built with [Three.js](https://threejs.org/) and [Vite](https://vite.dev/).
+
+
+## Opt-in artwork titles
+
+The launch introduction has no collection-specific tagline. Close-up and Collection titles display only for a filename beginning with `##`: `##Autumn, 2026.jpg` displays `Autumn, 2026`; `IMG_1234.jpg` displays no title. Existing descriptions and dates remain independent. Matching Favorite folder names still uses the original asset name. Local imports store the filename; Cloudinary imports store the display name (falling back to original filename/public ID). Rename the display name in Cloudinary for this convention. Resync is required after renaming because visitors read catalog snapshots, not live asset metadata. Rebuild/redeploy after a local resync to publish the change; opening a close-up alone does not fetch metadata. A public catalog URL must also serve an updated catalog.

@@ -1,3 +1,4 @@
+import {artworkTitle} from './artwork-title.js';
 import {imageURL,nearbyDisplays,createWallStream} from './mobile-rendering.js';
 import { createSources,albumsFromCatalog,validateCatalog } from './sources.js';
 import { createTouchSticks } from './touch-sticks.js';
@@ -135,7 +136,7 @@ function renderCollection() {
     const button = document.createElement('button'); button.className = 'collection-item';
     const img = document.createElement('img'); img.alt = photo.alt;
     img.loading='lazy';img.decoding='async';img.src=photo.thumbnail||photo.src;
-    const title = document.createElement('strong'); title.textContent = photo.title;
+    const title = document.createElement('strong'); title.textContent = artworkTitle(photo);title.hidden=!title.textContent;
     const theme = document.createElement('span'); theme.textContent = displayLocations.get(photo.id) || ({autumn:'Autumn studies',water:'Along the water',country:'Open country'}[photo.theme] || folderOf(photo));
     button.append(img, title, theme); button.onclick = () => openPhoto(photo); $('collection-grid').append(button);
   }
@@ -146,7 +147,7 @@ async function openPhoto(photo,locationLabel=null,sequenceIds=null) {
   $('full-photo').hidden = true; $('full-photo').removeAttribute('src'); $('full-photo').alt = photo.alt;
   $('photo-load-status').hidden = false; $('photo-load-status').textContent = 'Loading artwork…'; $('retry-photo').hidden = true;
   $('zoom-photo').disabled = true;
-  $('photo-title').textContent = photo.title; $('photo-description').textContent = photo.description || '';
+  const caption=artworkTitle(photo);$('photo-title').textContent=caption;$('photo-title').hidden=!caption; $('photo-description').textContent = photo.description || '';
   $('photo-meta').textContent = [photo.dateTaken, photo.location, photo.metadataStatus].filter(Boolean).join(' · ');
   $('viewer-room').textContent = locationLabel || (state.reading?`Album · ${books.reader.album?.name||'Photo album'}`:displayLocations.get(photo.id)) || 'The collection';
   const ids = sequenceIds || (state.reading?books.reader.album.photoIds:state.visit.assignments[photo.theme]); state.viewerIds=ids;state.viewerLocation=$('viewer-room').textContent; $('photo-position').textContent = `${ids.indexOf(photo.id) + 1} / ${ids.length}`;
