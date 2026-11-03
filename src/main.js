@@ -1,3 +1,5 @@
+import {createVR} from './vr.js';
+import {immersiveSupported} from './vr-policy.js';
 import {setupFullscreen} from './fullscreen.js';
 import {bookCameraPose,maxBookTilt} from './book-camera.js';
 import {frameStyles,frameBorder} from './frames.js';
@@ -21,6 +23,7 @@ import { createVisit, validVisit } from './visit.js';
 
 const $ = id => document.getElementById(id);
 const mobile=innerWidth<800||/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)||(navigator.maxTouchPoints>1&&matchMedia('(pointer: coarse)').matches);
+let vr,constrained=mobile;
 let wallStream,streamEntries=[],streamTime=0,closeupURL;
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const keys = new Set();
@@ -50,7 +53,7 @@ function closeDialog(id) { $(id).close(); (returnFocus?.isConnected ? returnFocu
 document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => closeDialog(b.dataset.close));
 document.querySelectorAll('dialog').forEach(d => {
   d.addEventListener('click', e => { if (e.target === d) { const r = d.getBoundingClientRect(); if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) d.close(); } });
-  d.addEventListener('close', () => { keys.clear(); if (state.entered && !activeDialog()) $('scene').focus({ preventScroll: true }); });
+  d.addEventListener('close', () => { keys.clear(); if (!vr?.active && state.entered && !activeDialog()) $('scene').focus({ preventScroll: true }); });
 });
 
 function material(color, options = {}) { return new THREE.MeshStandardMaterial({ color, roughness: .88, ...options }); }
@@ -60,7 +63,7 @@ function box(w, h, d, x, y, z, mat, parent = scene) {
 }
 async function loadMobileTexture(photo,entry){const tex=await new THREE.TextureLoader().loadAsync(imageURL(photo,wallTextureSize(entry)));tex.colorSpace=THREE.SRGBColorSpace;tex.generateMipmaps=false;tex.minFilter=THREE.LinearFilter;tex.anisotropy=1;return tex;}
 async function getTexture(photo) {
-  if(mobile)return loadMobileTexture(photo);
+  if(constrained)return loadMobileTexture(photo);
   if (textureCache.has(photo.id)) return textureCache.get(photo.id);
   const promise = photoAssets.source({...photo,id:`${photo.id}:display`,src:photo.displaySrc||photo.src}).then(source => new THREE.TextureLoader().loadAsync(source)).then(tex => { tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy()); return tex; }).catch(error=>{if(textureCache.get(photo.id)===promise)textureCache.delete(photo.id);throw error;});
   textureCache.set(photo.id, promise); return promise;
@@ -74,22 +77,22 @@ async function hangPhotos() {
   artworkGroups.forEach(g => { scene.remove(g); g.traverse(o => { o.geometry?.dispose(); if (o.material) { if (o.userData.label) o.material.map?.dispose(); o.material.dispose(); } }); });
   artworkGroups.length = 0;const ticket=++artworkRequest;
   const assignments = planExpandedDisplays(catalog, state.visit);
-  const loaded=mobile?{ready:new Map(),failed:[]}:await preloadPhotos(assignments.map(a=>a.photo),async photo=>{const texture=await getTexture(photo);renderer.initTexture(texture);return texture;},(done,total)=>{$('exhibition-progress').textContent=`${done} / ${total} artworks ready`;$('exhibition-bar').max=Math.max(1,total);$('exhibition-bar').value=done;});
+  const loaded=constrained?{ready:new Map(),failed:[]}:await preloadPhotos(assignments.map(a=>a.photo),async photo=>{const texture=await getTexture(photo);renderer.initTexture(texture);return texture;},(done,total)=>{$('exhibition-progress').textContent=`${done} / ${total} artworks ready`;$('exhibition-bar').max=Math.max(1,total);$('exhibition-bar').value=done;});
   if(ticket!==artworkRequest)return;
   displayLocations.clear();const plan=exhibitionPlan(catalog,state.visit);
   if(plan){$('collection-summary').textContent=`Floor 1: ${plan.floors[0]} · Floor 2: ${plan.floors[1]} · Floor 3: ${plan.floors[2]}`;}
   for (const { slot, photo, label: locationLabel } of assignments) {
-    const texture=loaded.ready.get(photo.id);if(!texture&&!mobile)continue;
+    const texture=loaded.ready.get(photo.id);if(!texture&&!constrained)continue;
     if (!displayLocations.has(photo.id) || slot.area === 'favorites') displayLocations.set(photo.id, locationLabel);
 
     const geometry=printGeometry(photo,slot,settings.margin),w=geometry.width,h=geometry.height;
     const group = new THREE.Group(); group.position.set(slot.x, slot.y, slot.z); group.rotation.y = Math.atan2(slot.normal.x, slot.normal.z); scene.add(group); artworkGroups.push(group);
     const frameStyle=frameStyles[settings.frameColor];const frame=box(geometry.outerWidth+2*frameBorder,geometry.outerHeight+2*frameBorder,.09,0,0,0,material(frameStyle.color,frameStyle),group);frame.userData.artFrame=true;
     if(geometry.mat)box(geometry.outerWidth,geometry.outerHeight,.012,0,0,.051,new THREE.MeshBasicMaterial({color:'#ffffff'}),group);
-    const image = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({map:texture})); image.position.z = .064; image.userData.photo = photo; image.userData.location = locationLabel; image.userData.sequenceIds = assignments.filter(a=>a.slot.room===slot.room&&a.slot.area===slot.area).map(a=>a.photo.id); group.add(image); artMeshes.push(image);if(mobile){group.visible=false;streamEntries.push({slot,photo,group,material:image.material});}
+    const image = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({map:texture})); image.position.z = .064; image.userData.photo = photo; image.userData.location = locationLabel; image.userData.sequenceIds = assignments.filter(a=>a.slot.room===slot.room&&a.slot.area===slot.area).map(a=>a.photo.id); group.add(image); artMeshes.push(image);if(constrained){group.visible=false;streamEntries.push({slot,photo,group,material:image.material});}
 
   }
-  if(mobile){wallStream=createWallStream(loadMobileTexture,t=>t.dispose());wallStream.update(nearbyDisplays(streamEntries,camera.position));$('exhibition-progress').textContent='Preparing nearby galleries…';await wallStream.ready();}
+  if(constrained){wallStream=createWallStream(loadMobileTexture,t=>t.dispose());wallStream.update(nearbyDisplays(streamEntries,camera.position));$('exhibition-progress').textContent='Preparing nearby galleries…';await wallStream.ready();}
   scene.updateMatrixWorld(true);
   renderer.shadowMap.needsUpdate=true;
   if(loaded.failed.length)toast(`${loaded.failed.length} artworks could not load. New visit will retry them; no empty frames are displayed.`);
@@ -122,7 +125,7 @@ function updateLocation(){
   $('scene').dataset.floor=String(floor+1);$('map-player').setAttribute('cx',p.x*10);$('map-player').setAttribute('cy',p.z*10);$('map-player').style.display=floor===mapFloor?'':'none';
 }
 function applyBookCamera(){if(!readingBookPose)return;const top=document.querySelector('.topbar').getBoundingClientRect().height+16,bottom=$('book-reader').hidden?100:$('book-reader').getBoundingClientRect().height+16,safeHeight=Math.max(120,innerHeight-top-bottom),safeFov=2*Math.atan(Math.tan(camera.fov*Math.PI/360)*safeHeight/innerHeight)*180/Math.PI;camera.setViewOffset(innerWidth,innerHeight,0,(bottom-top)/2,innerWidth,innerHeight);const pose=bookCameraPose(readingBookPose,innerWidth/safeHeight,safeFov,bookTilt);bookTilt=pose.tilt;camera.position.set(pose.x,pose.y,pose.z);state.yaw=pose.yaw;state.pitch=pose.pitch;updateCamera();$('book-angle').textContent=`View: ${Math.round(bookTilt*180/Math.PI)}° tilt · ↑ overhead / ↓ tilt (max 30°)`;}
-function updateCamera() { camera.rotation.set(state.pitch, state.yaw, 0, 'YXZ'); }
+function updateCamera() { if(vr?.active)return;camera.rotation.set(state.pitch, state.yaw, 0, 'YXZ'); }
 function loadVisit() {
   let saved; try { saved = JSON.parse(sessionStorage.getItem(SAVE_KEY)); } catch { /* Storage may be unavailable. */ }
   state.visit = validVisit(saved, catalog) ? saved : createVisit(catalog);
@@ -147,6 +150,7 @@ function renderCollection() {
   }
 }
 async function openPhoto(photo,locationLabel=null,sequenceIds=null) {
+  if(vr?.active){await vr.openArtwork(photo);return;}
   pause(); state.selected = photo;
   const request = ++viewerRequest;
   $('full-photo').hidden = true; $('full-photo').removeAttribute('src'); $('full-photo').alt = photo.alt;
@@ -278,9 +282,9 @@ function pick(x, y) {
 }
 function bindScene() {
   const canvas = renderer.domElement;
-  canvas.addEventListener('pointerdown', e => { if (!state.entered || activeDialog() || e.button !== 0) return; $('scene').focus({ preventScroll: true }); down = { x: e.clientX, y: e.clientY, lastX: e.clientX, lastY: e.clientY, moved: false }; canvas.setPointerCapture(e.pointerId); });
+  canvas.addEventListener('pointerdown', e => { if (vr?.active || !state.entered || activeDialog() || e.button !== 0) return; $('scene').focus({ preventScroll: true }); down = { x: e.clientX, y: e.clientY, lastX: e.clientX, lastY: e.clientY, moved: false }; canvas.setPointerCapture(e.pointerId); });
   canvas.addEventListener('pointermove', e => {
-    if (!state.entered || activeDialog()) return;
+    if (vr?.active || !state.entered || activeDialog()) return;
     if(state.reading){if(down&&Math.hypot(e.clientX-down.x,e.clientY-down.y)>5)down.moved=true;return;}
     if (document.pointerLockElement === canvas) { state.yaw -= e.movementX * .002; state.pitch = THREE.MathUtils.clamp(state.pitch - e.movementY * .002, -.9, .9); }
     else if (down) {
@@ -295,6 +299,7 @@ function bindScene() {
   canvas.addEventListener('webglcontextlost', e => { e.preventDefault(); pause(); toast('The graphics connection was interrupted. Refresh to reopen the museum.'); });
 }
 document.addEventListener('keydown', e => {
+  if(vr?.active)return;
   if(state.reading&&!activeDialog()){if(e.key==='ArrowUp'||e.key==='ArrowDown'){e.preventDefault();bookTilt=Math.max(0,Math.min(maxBookTilt,bookTilt+(e.key==='ArrowDown'?1:-1)*Math.PI/60));applyBookCamera();return;}if(e.key==='Escape'){books.close();return;}if(e.key==='ArrowRight'){e.preventDefault();books.turn(1);return;}if(e.key==='ArrowLeft'){e.preventDefault();books.turn(-1);return;}return;}
   if (e.key === '?' && !activeDialog()) { showDialog('help-dialog'); return; }
   if ($('photo-dialog').open) { if (e.key === 'ArrowRight') { e.preventDefault(); adjacentPhoto(1); } if (e.key === 'ArrowLeft') { e.preventDefault(); adjacentPhoto(-1); } return; }
@@ -317,8 +322,9 @@ function move(dx, dz) {
 }
 function animate(time) {
   const dt = Math.min((time - lastTime) / 1000 || 0, .05); lastTime = time;
-  books?.update(dt);if(mobile&&wallStream&&time-streamTime>400){streamTime=time;wallStream.update(nearbyDisplays(streamEntries,camera.position));}
-  if (state.entered && !activeDialog() && !state.reading && !tourBuilding && !exhibitionLoading) {
+  books?.update(dt);if(constrained&&wallStream&&!vr?.transitioning&&(!vr?.active||renderer.xr.isPresenting)&&time-streamTime>400){streamTime=time;wallStream.update(nearbyDisplays(streamEntries,vr?.active?vr.headPosition():camera.position));}
+  vr?.update(dt);
+  if (!vr?.active && state.entered && !activeDialog() && !state.reading && !tourBuilding && !exhibitionLoading) {
     let forward = Number(keys.has('KeyW') || keys.has('ArrowUp')) - Number(keys.has('KeyS') || keys.has('ArrowDown'))-(sticks?.values.move.y||0);
     let side = Number(keys.has('KeyD') || keys.has('ArrowRight')) - Number(keys.has('KeyA') || keys.has('ArrowLeft'))+(sticks?.values.move.x||0);
     state.yaw += (Number(keys.has('KeyQ')) - Number(keys.has('KeyE'))) * dt * 1.4-(sticks?.values.look.x||0)*dt*1.5;
@@ -354,13 +360,14 @@ async function boot() {
   $('photo-count').textContent = catalog.photos.length;
   loadVisit();buildMap();buildCollectionFilters();
   scene = new THREE.Scene(); scene.background = new THREE.Color('#dce6e7'); scene.fog = null;
+  const vrSupported=await immersiveSupported();constrained=mobile||vrSupported;
   camera = new THREE.PerspectiveCamera(innerWidth < 800 ? 80 : 66, innerWidth / innerHeight, .08, 110); camera.position.set(entrance.x, EYE, entrance.z); state.yaw = entranceYaw();
-  renderer = new THREE.WebGLRenderer({ antialias: !mobile, powerPreference: mobile?'low-power':'high-performance' }); renderer.setPixelRatio(Math.min(devicePixelRatio, mobile?1:1.7)); renderer.setSize(innerWidth, innerHeight); renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer = new THREE.WebGLRenderer({ antialias: !constrained, powerPreference: vrSupported?'high-performance':mobile?'low-power':'high-performance' }); renderer.setPixelRatio(Math.min(devicePixelRatio, constrained?1:1.7)); renderer.setSize(innerWidth, innerHeight); renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.2;
-  renderer.shadowMap.enabled = !mobile; renderer.shadowMap.autoUpdate=false;renderer.shadowMap.needsUpdate=true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.enabled = !constrained; renderer.shadowMap.autoUpdate=false;renderer.shadowMap.needsUpdate=true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   $('scene').append(renderer.domElement);
   skyHemi = new THREE.HemisphereLight('#eff5ff', '#bbb9a6', 2.5); scene.add(skyHemi); scene.add(new THREE.AmbientLight('#fffdf4', .65));
-  const sun = new THREE.DirectionalLight('#fff4dd', 2.3); sun.position.set(7, 18, 10); sun.castShadow = !mobile; sun.shadow.mapSize.set(2048, 2048); Object.assign(sun.shadow.camera, { left: -27, right: 27, top: 27, bottom: -27, near: .1, far: 60 }); sun.shadow.bias = -.0004; sun.shadow.normalBias = .03; scene.add(sun);
+  const sun = new THREE.DirectionalLight('#fff4dd', 2.3); sun.position.set(7, 18, 10); sun.castShadow = !constrained; sun.shadow.mapSize.set(2048, 2048); Object.assign(sun.shadow.camera, { left: -27, right: 27, top: 27, bottom: -27, near: .1, far: 60 }); sun.shadow.bias = -.0004; sun.shadow.normalBias = .03; scene.add(sun);
   skySun = sun; skySystem = makeSky(scene, reduced);skySystem.setPreview(settings.sky===''?null:Number(settings.sky)); skySystem.update(0,skyHemi,skySun);
   const world=buildWorld(scene,renderer,settings);updateBrand=world.updateBrand;updateStatue=world.updateStatue;updateRoomLabels=world.updateRoomLabels;floorMeshes.push(...world.floorMeshes);occluders.push(...world.occluders);
   const ringMarker=new THREE.Mesh(new THREE.RingGeometry(.22,.3,32),new THREE.MeshBasicMaterial({color:'#216653',side:THREE.DoubleSide}));ringMarker.rotation.x=-Math.PI/2;targetMarker.add(ringMarker);targetMarker.visible=false;scene.add(targetMarker);
@@ -368,15 +375,23 @@ async function boot() {
   await hangPhotos();setupAlbums();bindScene();sticks=createTouchSticks(()=>{tour.pause();updateTourUI();state.path=[];targetMarker.visible=false;});updateCamera();
   window.museumBooted = true;
   clearTimeout(window.museumStartupTimer);
+  vr=createVR({scene,renderer,camera,button:$('vr-button'),hooks:{
+    beforeEnter(){pause();tourBuildToken++;tourBuilding=false;tour.stop();if(state.reading){books.close();books.update(1);}document.querySelectorAll('dialog[open]').forEach(d=>d.close());camera.clearViewOffset();},
+    feet:()=>feet(),yaw:()=>state.yaw,canStand:canWalk,artworks:()=>artMeshes,floors:()=>floorMeshes,occluders:()=>occluders,
+    async loadArtwork(photo){const texture=await new THREE.TextureLoader().loadAsync(imageURL(photo,2048));texture.colorSpace=THREE.SRGBColorSpace;texture.generateMipmaps=false;texture.minFilter=THREE.LinearFilter;return texture;},
+    async prepareLanding(point){if(wallStream){wallStream.update(nearbyDisplays(streamEntries,{x:point.x,y:point.y+EYE,z:point.z}));await wallStream.ready();}},
+    changed(active){$('app').dataset.vr=String(active);document.querySelectorAll('.topbar button').forEach(b=>b.disabled=active&&b.id!=='vr-button');updateTourUI();if(!active){keys.clear();updateCamera();updateLocation();}},error:toast
+  }});
+  $('vr-button').hidden=!vrSupported;$('vr-button').disabled=!vrSupported;
   enter();
-  window.addEventListener('resize', () => { camera.fov = innerWidth < 800 ? 80 : 66; camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight);if(state.reading)applyBookCamera(); });
+  window.addEventListener('resize', () => {if(vr?.active)return; camera.fov = innerWidth < 800 ? 80 : 66; camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight);if(state.reading)applyBookCamera(); });
   renderer.setAnimationLoop(animate);
   // Read-only state is useful for diagnosing movement and session stability.
   window.museum = { getState: () => ({ position: { x: camera.position.x, z: camera.position.z }, yaw: state.yaw, room: roomAt(camera.position.x,camera.position.z,floorAt(camera.position.y-EYE))?.id || 'atrium', assignments: structuredClone(state.visit.assignments), selectedPhoto: state.selected?.id, pathLength: state.path.length, photoCount:artMeshes.length,floor:floorAt(camera.position.y-EYE)+1,tour:{status:tour.status,index:tour.index,visited:[...tour.visited]},album:books?.reader.album?.id,ready:true }), canWalk:(x,z)=>canWalk(x,z,floorAt(camera.position.y-EYE)) };
 }
 function updateTourUI(){
   const button=$('tour-button');if(!button)return;
-  button.textContent=tourBuilding?'Preparing tour…':tour.status==='running'?'Pause tour':tour.status==='paused'?'Resume tour':tour.status==='complete'?'Restart tour':'Start tour';button.disabled=tourBuilding||!!state.reading;
+  button.textContent=tourBuilding?'Preparing tour…':tour.status==='running'?'Pause tour':tour.status==='paused'?'Resume tour':tour.status==='complete'?'Restart tour':'Start tour';button.disabled=!!vr?.active||tourBuilding||!!state.reading;
   $('tour-stop').hidden=!['running','paused'].includes(tour.status)&&!tourBuilding;
   $('tour-progress').hidden=tour.status==='idle'&&!tourBuilding;
   $('tour-progress').textContent=tourBuilding?'Planning the route…':tour.status==='complete'?`Tour complete · ${rooms.length} galleries · Back on floor 1`:`${tour.status==='paused'?'Paused · ':''}${tour.visited.length} / ${rooms.length} galleries · ${tour.dwell>0&&tourLook?`Viewing ${tourLook.label}`:tour.target?.label||'The atrium'}`;
@@ -443,7 +458,7 @@ function setupAlbums(){
     opened(album,bookPose){pause();readingPose={position:camera.position.clone(),yaw:state.yaw,pitch:state.pitch};state.reading=true;$('app').dataset.reading='true';readingBookPose=bookPose;bookTilt=0;applyBookCamera();$('book-reader').hidden=false;applyBookCamera();$('album-title').textContent=album.name;$('hover-hint').hidden=true;updateLocation();updateTourUI();},
     changed(reader){if(!reader.album){$('book-reader').hidden=true;return;}$('album-pages').textContent=`Pages ${reader.spread*2+1}–${Math.min(reader.spread*2+2,reader.album.photoIds.length)} of ${reader.album.photoIds.length}`;$('book-prev').disabled=reader.spread===0;$('book-next').textContent=reader.last?'Finish & return book':'Turn page →';for(let i=0;i<2;i++){$(`book-photo-${i}`).disabled=!reader.pages[i];}},
     closed(){camera.clearViewOffset();readingBookPose=null;state.reading=false;$('app').dataset.reading='false';$('book-reader').hidden=true;if(readingPose){camera.position.copy(readingPose.position);state.yaw=readingPose.yaw;state.pitch=readingPose.pitch;updateCamera();}updateLocation();updateTourUI();$('scene').focus({preventScroll:true});},
-  },reduced,mobile);
+  },reduced,constrained);
   $('album-list').replaceChildren();
   for(const album of albums){const b=document.createElement('button');b.className='album-choice';b.textContent=album.name;const detail=document.createElement('span');detail.textContent=`${album.photoIds.length} artworks · Read on the desk`;b.append(detail);b.onclick=()=>{closeDialog('albums-dialog');enter();books.open(album);};$('album-list').append(b);}
 }

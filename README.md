@@ -6,6 +6,7 @@ The building has a twelve-sided ring with flat gallery walls, an open atrium, an
 
 ## What visitors can do
 
+- Enter experimental WebXR VR on supported headsets: controller pointers, teleportation, floor shortcuts, snap turns, and floating artwork close-ups. See [VR requirements and limits](docs/VR.md).
 - Enjoy immersive fullscreen viewing with the navigation hidden; hover or tap the top edge to reveal the exit button, or press Escape where supported.
 - Walk between galleries with keyboard/mouse or two transparent touch joysticks.
 - Click artwork for a close-up with optional title, description, date, and location.
@@ -130,3 +131,8 @@ The gallery enters automatically after preloading, without a welcome card. Full 
 
 
 Native fullscreen hides the gallery navigation. Move the pointer to the top edge or tap it to reveal a black × exit button; touch reveal lasts 3.5 seconds. Keyboard focus also reveals the button, and native Escape exit restores normal navigation.
+
+
+## Experimental headset VR
+
+Compatible headset browsers can enter immersive WebXR VR, with controller pointers, safe floor teleportation, floor shortcuts, 30° snap turning, floating artwork close-ups, and an in-world Exit VR control. Tours and overhead album viewing remain outside VR. See [VR controls, requirements and verification status](docs/VR.md). Real-headset testing is still required; automated session tests do not establish hardware performance or comfort.
