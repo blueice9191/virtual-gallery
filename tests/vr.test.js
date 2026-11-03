@@ -118,3 +118,11 @@ test('thumbstick stair walking follows both switchback flights up and down on bo
  for(let floor=1;floor>=0;floor--){await go(8.2,-3.67,floor*6+3);await go(5.8,-3.67,floor*6+3);await go(5.8,3.7,floor*6);if(floor===1)await go(8.2,3.7,6);}
  await f.vr.exit();
 });
+
+
+test('virtual reading height clamps between table and 6 ft 6 in without moving the book or floor',async()=>{
+ const f=fixture();await f.vr.enter();f.vr.update(.016);const book=new THREE.Group();book.position.set(-4,1.035,2.5);f.scene.add(book);f.vr.bookStand.mount(book);const fixed=f.vr.bookStand.root.position.clone();
+ for(let i=0;i<40;i++)f.vr.setReadingHeight(.1);assert.ok(Math.abs(f.vr.headPosition().y-1.9812)<1e-8);
+ for(let i=0;i<40;i++)f.vr.setReadingHeight(-.1);assert.ok(Math.abs(f.vr.headPosition().y-1.01)<1e-8);
+ assert.deepEqual(f.vr.bookStand.root.position,fixed);f.vr.bookStand.unmount();assert.ok(Math.abs(f.vr.headPosition().y-1.6)<1e-8);await f.vr.exit();assert.equal(f.vr.active,false);
+});

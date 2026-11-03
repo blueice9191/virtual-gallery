@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import {createVRBookStand} from './vr-book-stand.js';
+import {TABLE_TOP,MAX_VIEWER_HEIGHT,createVRBookStand} from './vr-book-stand.js';
 import { textMesh } from './world.js';
 import { artworkTitle } from './artwork-title.js';
 import { teleportLanding,floorLanding,fittedArtwork } from './vr-policy.js';
@@ -11,7 +11,7 @@ export function createVR({scene,renderer,camera,button,xr=globalThis.navigator?.
   const panelTargets=[],viewerTargets=[],controllers=[],ray=new THREE.Raycaster(),head=new THREE.Vector3(),forward=new THREE.Vector3(),rotation=new THREE.Matrix4();
   const marker=new THREE.Mesh(new THREE.RingGeometry(.16,.23,32),new THREE.MeshBasicMaterial({color:'#4baf9c',side:THREE.DoubleSide}));marker.rotation.x=-Math.PI/2;marker.visible=false;scene.add(marker);
   const curtain=new THREE.Mesh(new THREE.PlaneGeometry(10,10),new THREE.MeshBasicMaterial({color:'#000',transparent:true,opacity:0,depthTest:false,depthWrite:false}));curtain.position.z=-.15;curtain.renderOrder=10000;camera.add(curtain);
-  let generation=0,groundY=0,lookPitch=0;
+  let generation=0,groundY=0,lookPitch=0,readingHeightOffset=0;
   let active=false,starting=false,busy=false,saved=null,photoTicket=0,menuPending=false,photoTexture=null;
   const text=(label,w,h)=>makeText(label,w,h,60,'#263b32','#f8f9f6');
   const transitionLabel=text('Preparing gallery…',.18,.025);transitionLabel.position.z=-.14;transitionLabel.material.depthTest=false;transitionLabel.material.depthWrite=false;transitionLabel.renderOrder=10001;transitionLabel.visible=false;camera.add(transitionLabel);
@@ -34,7 +34,15 @@ export function createVR({scene,renderer,camera,button,xr=globalThis.navigator?.
     const position=headPosition();camera.getWorldDirection(forward);forward.y=0;if(forward.lengthSq()<.001)forward.set(0,0,-1);forward.normalize();
     group.position.copy(position).addScaledVector(forward,distance);group.position.y+=vertical;group.lookAt(position.x,group.position.y,position.z);group.updateMatrixWorld(true);
   }
-  const bookStand=createVRBookStand(scene,{pose:()=>({position:headPosition(),direction:camera.getWorldDirection(new THREE.Vector3())}),close:()=>hooks.closeBook?.(),makeText});
+  function setReadingHeight(delta,reset=false){
+    if(!active)return;
+    const current=headPosition().y-groundY,base=current-readingHeightOffset;
+    const target=THREE.MathUtils.clamp(reset?base:current+delta,TABLE_TOP,MAX_VIEWER_HEIGHT),change=target-current;
+    rig.position.y+=change;readingHeightOffset+=change;rig.updateMatrixWorld(true);renderer.xr.updateCamera(camera);
+  }
+  const bookStand=createVRBookStand(scene,{adjustHeight:delta=>setReadingHeight(delta),resetHeight:(clamp=false)=>{
+    if(clamp){setReadingHeight(0,true);return;}if(!readingHeightOffset)return;rig.position.y-=readingHeightOffset;readingHeightOffset=0;rig.updateMatrixWorld(true);renderer.xr.updateCamera(camera);
+  },pose:()=>({position:headPosition(),direction:camera.getWorldDirection(new THREE.Vector3())}),close:()=>hooks.closeBook?.(),makeText});
   function disposeMap(texture){texture?.dispose();}
   function closeArtwork(){photoTicket++;viewer.visible=false;image.visible=false;image.material.map=null;disposeMap(photoTexture);photoTexture=null;if(active){menu.visible=true;menuPending=true;}}
   async function openArtwork(photo){
@@ -137,5 +145,5 @@ export function createVR({scene,renderer,camera,button,xr=globalThis.navigator?.
       }
     }
   }
-  return {get active(){return active;},get transitioning(){return busy;},enter,exit,update,headPosition,teleport,bookStand,openArtwork,closeArtwork,menu,viewer,rig,controllers};
+  return {get active(){return active;},get transitioning(){return busy;},enter,exit,update,headPosition,setReadingHeight,teleport,bookStand,openArtwork,closeArtwork,menu,viewer,rig,controllers};
 }
