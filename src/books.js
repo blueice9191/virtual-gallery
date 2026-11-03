@@ -66,5 +66,5 @@ export function createBooks(scene,albums,photos,getTexture,hooks,reduced,bounded
     if(a.t===1){animation=null;if(a.kind==='flip'){a.direction>0?reader.next():reader.previous();paint(a.prepared);flipPivot.visible=false;turningImages.forEach(p=>p.material.map=null);spreads.warm(a.album,a.target);}if(a.kind==='close'){if(bounded){pages.forEach(p=>p.material.map=null);turningImages.forEach(p=>p.material.map=null);spreads.clear();}openGroup.visible=false;closed.get(a.id).visible=true;hooks.closed();}}
   }
   function dispose(){spreads.clear();request++;preparing=false;animation=null;reader.close();for(const group of [...closed.values(),openGroup]){scene.remove(group);group.traverse(mesh=>{mesh.geometry?.dispose();if(mesh.material){if(!pages.includes(mesh)&&!turningImages.includes(mesh))mesh.material.map?.dispose();mesh.material.dispose();}});}}
-  return {reader,open,close,turn,update,dispose,pickables:[...pickables,...turnTargets],get busy(){return !!animation||preparing;}};
+  return {reader,open,close,turn,update,dispose,openGroup,pickables:[...pickables,...turnTargets],get busy(){return !!animation||preparing;}};
 }

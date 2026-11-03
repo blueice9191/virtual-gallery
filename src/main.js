@@ -200,7 +200,7 @@ async function cloudAPI(action,data){
 async function acceptSource(next,mode){
   validateCatalog(next);settings.source=mode;persistSettings();
   if(pendingSourceBoot){const resolve=pendingSourceBoot;pendingSourceBoot=null;resolve(next);closeDialog('settings-dialog');return;}
-  pause();tour.stop();tourRejoin=[];tourLook=null;books?.dispose();books=null;state.reading=false;$('app').dataset.reading='false';$('book-reader').hidden=true;
+  pause();tour.stop();tourRejoin=[];tourLook=null;vr?.bookStand.unmount();books?.dispose();books=null;state.reading=false;$('app').dataset.reading='false';$('book-reader').hidden=true;
   for(const promise of textureCache.values())Promise.resolve(promise).then(texture=>texture.dispose()).catch(()=>{});textureCache.clear();photoAssets.dispose?.();photoAssets=createPhotoAssets();
   catalog=next;albums=albumsFromCatalog(catalog);state.filter='all';$('photo-count').textContent=catalog.photos.length;loadVisit();buildMap();buildCollectionFilters();await hangPhotos();setupAlbums();updateTourUI();fillSourceSettings();
 }
@@ -457,9 +457,9 @@ function advanceTour(dt){
 function setupAlbums(){
   books=createBooks(scene,albums,catalog.photos,getTexture,{
     loading(message){toast(message);},
-    opened(album,bookPose){if(vr?.active){readingPose=null;return;}pause();readingPose={position:camera.position.clone(),yaw:state.yaw,pitch:state.pitch};state.reading=true;$('app').dataset.reading='true';readingBookPose=bookPose;bookTilt=0;applyBookCamera();$('book-reader').hidden=false;applyBookCamera();$('album-title').textContent=album.name;$('hover-hint').hidden=true;updateLocation();updateTourUI();},
+    opened(album,bookPose){if(vr?.active){readingPose=null;vr.bookStand.mount(books.openGroup);return;}pause();readingPose={position:camera.position.clone(),yaw:state.yaw,pitch:state.pitch};state.reading=true;$('app').dataset.reading='true';readingBookPose=bookPose;bookTilt=0;applyBookCamera();$('book-reader').hidden=false;applyBookCamera();$('album-title').textContent=album.name;$('hover-hint').hidden=true;updateLocation();updateTourUI();},
     changed(reader){if(!reader.album){$('book-reader').hidden=true;return;}$('album-pages').textContent=`Pages ${reader.spread*2+1}–${Math.min(reader.spread*2+2,reader.album.photoIds.length)} of ${reader.album.photoIds.length}`;$('book-prev').disabled=reader.spread===0;$('book-next').textContent=reader.last?'Finish & return book':'Turn page →';for(let i=0;i<2;i++){$(`book-photo-${i}`).disabled=!reader.pages[i];}},
-    closed(){if(vr?.active){readingPose=null;return;}camera.clearViewOffset();readingBookPose=null;state.reading=false;$('app').dataset.reading='false';$('book-reader').hidden=true;if(readingPose){camera.position.copy(readingPose.position);state.yaw=readingPose.yaw;state.pitch=readingPose.pitch;updateCamera();}updateLocation();updateTourUI();$('scene').focus({preventScroll:true});},
+    closed(){vr?.bookStand.unmount();if(vr?.active){readingPose=null;return;}camera.clearViewOffset();readingBookPose=null;state.reading=false;$('app').dataset.reading='false';$('book-reader').hidden=true;if(readingPose){camera.position.copy(readingPose.position);state.yaw=readingPose.yaw;state.pitch=readingPose.pitch;updateCamera();}updateLocation();updateTourUI();$('scene').focus({preventScroll:true});},
   },reduced,constrained);
   $('album-list').replaceChildren();
   for(const album of albums){const b=document.createElement('button');b.className='album-choice';b.textContent=album.name;const detail=document.createElement('span');detail.textContent=`${album.photoIds.length} artworks · Read on the desk`;b.append(detail);b.onclick=()=>{closeDialog('albums-dialog');enter();books.open(album);};$('album-list').append(b);}

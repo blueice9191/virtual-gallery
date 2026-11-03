@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import {createVRBookStand} from './vr-book-stand.js';
 import { textMesh } from './world.js';
 import { artworkTitle } from './artwork-title.js';
 import { teleportLanding,floorLanding,fittedArtwork } from './vr-policy.js';
@@ -33,6 +34,7 @@ export function createVR({scene,renderer,camera,button,xr=globalThis.navigator?.
     const position=headPosition();camera.getWorldDirection(forward);forward.y=0;if(forward.lengthSq()<.001)forward.set(0,0,-1);forward.normalize();
     group.position.copy(position).addScaledVector(forward,distance);group.position.y+=vertical;group.lookAt(position.x,group.position.y,position.z);group.updateMatrixWorld(true);
   }
+  const bookStand=createVRBookStand(scene,{pose:()=>({position:headPosition(),direction:camera.getWorldDirection(new THREE.Vector3())}),close:()=>hooks.closeBook?.(),makeText});
   function disposeMap(texture){texture?.dispose();}
   function closeArtwork(){photoTicket++;viewer.visible=false;image.visible=false;image.material.map=null;disposeMap(photoTexture);photoTexture=null;if(active){menu.visible=true;menuPending=true;}}
   async function openArtwork(photo){
@@ -58,7 +60,7 @@ export function createVR({scene,renderer,camera,button,xr=globalThis.navigator?.
   function visible(mesh){for(let p=mesh;p;p=p.parent)if(!p.visible)return false;return true;}
   function point(controller){
     controller.updateWorldMatrix(true,false);rotation.extractRotation(controller.matrixWorld);ray.ray.origin.setFromMatrixPosition(controller.matrixWorld);ray.ray.direction.set(0,0,-1).applyMatrix4(rotation);ray.far=40;
-    const controls=viewer.visible?viewerTargets:panelTargets.filter(visible);
+    const controls=viewer.visible?viewerTargets:[...panelTargets.filter(visible),...bookStand.controls.filter(visible)];
     const control=ray.intersectObjects(controls,false)[0];if(control)return control;
     const objects=viewer.visible?[backing]:[...(hooks.bookTargets?.()||[]).filter(visible),...hooks.artworks().filter(visible),...hooks.floors(),...hooks.occluders()];
     return ray.intersectObjects(objects,false)[0]||null;
@@ -80,7 +82,7 @@ export function createVR({scene,renderer,camera,button,xr=globalThis.navigator?.
     controllers.push({controller,line});
   }
   function restore(){
-    if(!saved)return;hooks.closeBook?.();generation++;active=false;busy=false;starting=false;closeArtwork();menu.visible=false;marker.visible=false;transitionLabel.visible=false;curtain.material.opacity=0;controllers.forEach(v=>v.line.visible=false);
+    if(!saved)return;hooks.closeBook?.();bookStand.unmount();generation++;active=false;busy=false;starting=false;closeArtwork();menu.visible=false;marker.visible=false;transitionLabel.visible=false;curtain.material.opacity=0;controllers.forEach(v=>v.line.visible=false);
     rig.position.set(0,0,0);rig.rotation.set(0,0,0);camera.position.copy(saved.position);camera.quaternion.copy(saved.quaternion);camera.scale.copy(saved.scale);camera.fov=saved.fov;camera.aspect=saved.aspect;camera.updateProjectionMatrix();camera.updateMatrixWorld(true);
     renderer.shadowMap.enabled=saved.shadows;renderer.shadowMap.needsUpdate=true;saved=null;button.textContent='Enter VR';button.disabled=false;hooks.changed(false);
   }
@@ -135,5 +137,5 @@ export function createVR({scene,renderer,camera,button,xr=globalThis.navigator?.
       }
     }
   }
-  return {get active(){return active;},get transitioning(){return busy;},enter,exit,update,headPosition,teleport,openArtwork,closeArtwork,menu,viewer,rig,controllers};
+  return {get active(){return active;},get transitioning(){return busy;},enter,exit,update,headPosition,teleport,bookStand,openArtwork,closeArtwork,menu,viewer,rig,controllers};
 }
