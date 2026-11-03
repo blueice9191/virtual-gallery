@@ -17,7 +17,7 @@ export function createVR({scene,renderer,camera,button,xr=globalThis.navigator?.
   const hint=text('Left stick: move · Right stick: look\nTrigger: teleport / art · Squeeze: menu',1.8,.23);hint.position.y=.28;menu.add(hint);
   function control(label,x,y,action){const mesh=text(label,.52,.17);mesh.position.set(x,y,0);mesh.userData.vrAction=action;menu.add(mesh);panelTargets.push(mesh);return mesh;}
   for(let floor=0;floor<3;floor++)control(`Floor ${floor+1}`,(floor-1)*.59,0,()=>teleport(floorLanding(floor)));
-  control('Close artwork',-.59,-.23,()=>closeArtwork());control('Exit VR',.59,-.23,()=>exit());
+  control('Close artwork',-.59,-.23,()=>closeArtwork());control('Close book',0,-.23,()=>hooks.closeBook?.());control('Exit VR',.59,-.23,()=>exit());
   const close=text('Close artwork',.65,.16);close.position.set(0,-1.02,.025);close.userData.vrAction=()=>closeArtwork();viewer.add(close);viewerTargets.push(close);
   const backing=new THREE.Mesh(new THREE.PlaneGeometry(2.15,2.3),new THREE.MeshBasicMaterial({color:'#f8f9f6',side:THREE.DoubleSide}));backing.position.z=-.01;viewer.add(backing);
   const loading=text('Loading artwork…',1.4,.18);viewer.add(loading);
@@ -60,13 +60,15 @@ export function createVR({scene,renderer,camera,button,xr=globalThis.navigator?.
     controller.updateWorldMatrix(true,false);rotation.extractRotation(controller.matrixWorld);ray.ray.origin.setFromMatrixPosition(controller.matrixWorld);ray.ray.direction.set(0,0,-1).applyMatrix4(rotation);ray.far=40;
     const controls=viewer.visible?viewerTargets:panelTargets.filter(visible);
     const control=ray.intersectObjects(controls,false)[0];if(control)return control;
-    const objects=viewer.visible?[backing]:[...hooks.artworks().filter(visible),...hooks.floors(),...hooks.occluders()];
+    const objects=viewer.visible?[backing]:[...(hooks.bookTargets?.()||[]).filter(visible),...hooks.artworks().filter(visible),...hooks.floors(),...hooks.occluders()];
     return ray.intersectObjects(objects,false)[0]||null;
   }
   function select(controller){
     if(!active||busy)return;const hit=point(controller);if(!hit)return;
     if(hit.object.userData.vrAction){hit.object.userData.vrAction();return;}
     if(viewer.visible)return;
+    if(hit.object.userData.turnPage){hooks.turnBook?.(hit.object.userData.turnPage);return;}
+    if(hit.object.userData.album){menu.visible=false;hooks.openBook?.(hit.object.userData.album);return;}
     if(hit.object.userData.photo){openArtwork(hit.object.userData.photo);return;}
     if(hooks.floors().includes(hit.object))teleport(hit.point);
   }
@@ -78,7 +80,7 @@ export function createVR({scene,renderer,camera,button,xr=globalThis.navigator?.
     controllers.push({controller,line});
   }
   function restore(){
-    if(!saved)return;generation++;active=false;busy=false;starting=false;closeArtwork();menu.visible=false;marker.visible=false;transitionLabel.visible=false;curtain.material.opacity=0;controllers.forEach(v=>v.line.visible=false);
+    if(!saved)return;hooks.closeBook?.();generation++;active=false;busy=false;starting=false;closeArtwork();menu.visible=false;marker.visible=false;transitionLabel.visible=false;curtain.material.opacity=0;controllers.forEach(v=>v.line.visible=false);
     rig.position.set(0,0,0);rig.rotation.set(0,0,0);camera.position.copy(saved.position);camera.quaternion.copy(saved.quaternion);camera.scale.copy(saved.scale);camera.fov=saved.fov;camera.aspect=saved.aspect;camera.updateProjectionMatrix();camera.updateMatrixWorld(true);
     renderer.shadowMap.enabled=saved.shadows;renderer.shadowMap.needsUpdate=true;saved=null;button.textContent='Enter VR';button.disabled=false;hooks.changed(false);
   }
@@ -118,7 +120,8 @@ export function createVR({scene,renderer,camera,button,xr=globalThis.navigator?.
         const steps=Math.max(1,Math.ceil(delta.length()/.04));
         for(let i=0;i<steps;i++)for(const axis of ['x','z']){
           const here=headPosition(),next={x:here.x,y:groundY,z:here.z};next[axis]+=delta[axis]/steps;
-          if(teleportLanding(next,hooks.canStand)){rig.position[axis]+=delta[axis]/steps;rig.updateMatrixWorld(true);renderer.xr.updateCamera(camera);}
+          const surface=hooks.walkSurface?hooks.walkSurface(next.x,next.z,groundY):teleportLanding(next,hooks.canStand)?.y;
+          if(surface!==undefined){rig.position[axis]+=delta[axis]/steps;rig.position.y+=surface-groundY;groundY=surface;rig.updateMatrixWorld(true);renderer.xr.updateCamera(camera);}
         }
       }
       if(!busy&&source.handedness==='right'){

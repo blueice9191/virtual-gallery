@@ -14,3 +14,10 @@ export function fittedArtwork(photo,maxWidth=1.9,maxHeight=1.5){
   const aspect=photo.width/photo.height,width=Math.min(maxWidth,maxHeight*aspect);
   return {width,height:width/aspect};
 }
+
+// Follow the existing continuous stair surface without permitting ledge drops.
+export function walkingLanding(x,z,y,surface){
+ const height=surface(x,z,y);if(height===undefined)return;
+ for(const [dx,dz] of [[.18,0],[-.18,0],[0,.18],[0,-.18]])if(surface(x+dx,z+dz,height)===undefined)return;
+ return height;
+}

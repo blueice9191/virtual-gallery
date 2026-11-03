@@ -1,5 +1,5 @@
 import {createVR} from './vr.js';
-import {immersiveSupported} from './vr-policy.js';
+import {immersiveSupported,walkingLanding} from './vr-policy.js';
 import {setupFullscreen} from './fullscreen.js';
 import {bookCameraPose,maxBookTilt} from './book-camera.js';
 import {frameStyles,frameBorder} from './frames.js';
@@ -377,7 +377,9 @@ async function boot() {
   clearTimeout(window.museumStartupTimer);
   vr=createVR({scene,renderer,camera,button:$('vr-button'),hooks:{
     beforeEnter(){pause();tourBuildToken++;tourBuilding=false;tour.stop();if(state.reading){books.close();books.update(1);}document.querySelectorAll('dialog[open]').forEach(d=>d.close());camera.clearViewOffset();},
-    feet:()=>feet(),yaw:()=>state.yaw,canStand:canWalk,artworks:()=>artMeshes,floors:()=>floorMeshes,occluders:()=>occluders,
+    feet:()=>feet(),yaw:()=>state.yaw,canStand:canWalk,
+    walkSurface:(x,z,y)=>walkingLanding(x,z,y,walkSurface),
+    bookTargets:()=>books?.pickables||[],openBook:album=>books.open(album),turnBook:direction=>books.turn(direction),closeBook(){books?.close();books?.update(1);},artworks:()=>artMeshes,floors:()=>floorMeshes,occluders:()=>occluders,
     async loadArtwork(photo){const texture=await new THREE.TextureLoader().loadAsync(imageURL(photo,2048));texture.colorSpace=THREE.SRGBColorSpace;texture.generateMipmaps=false;texture.minFilter=THREE.LinearFilter;return texture;},
     async prepareLanding(point){if(wallStream){wallStream.update(nearbyDisplays(streamEntries,{x:point.x,y:point.y+EYE,z:point.z}));await wallStream.ready();}},
     changed(active){$('app').dataset.vr=String(active);document.querySelectorAll('.topbar button').forEach(b=>b.disabled=active&&b.id!=='vr-button');updateTourUI();if(!active){keys.clear();updateCamera();updateLocation();}},error:toast
@@ -455,9 +457,9 @@ function advanceTour(dt){
 function setupAlbums(){
   books=createBooks(scene,albums,catalog.photos,getTexture,{
     loading(message){toast(message);},
-    opened(album,bookPose){pause();readingPose={position:camera.position.clone(),yaw:state.yaw,pitch:state.pitch};state.reading=true;$('app').dataset.reading='true';readingBookPose=bookPose;bookTilt=0;applyBookCamera();$('book-reader').hidden=false;applyBookCamera();$('album-title').textContent=album.name;$('hover-hint').hidden=true;updateLocation();updateTourUI();},
+    opened(album,bookPose){if(vr?.active){readingPose=null;return;}pause();readingPose={position:camera.position.clone(),yaw:state.yaw,pitch:state.pitch};state.reading=true;$('app').dataset.reading='true';readingBookPose=bookPose;bookTilt=0;applyBookCamera();$('book-reader').hidden=false;applyBookCamera();$('album-title').textContent=album.name;$('hover-hint').hidden=true;updateLocation();updateTourUI();},
     changed(reader){if(!reader.album){$('book-reader').hidden=true;return;}$('album-pages').textContent=`Pages ${reader.spread*2+1}–${Math.min(reader.spread*2+2,reader.album.photoIds.length)} of ${reader.album.photoIds.length}`;$('book-prev').disabled=reader.spread===0;$('book-next').textContent=reader.last?'Finish & return book':'Turn page →';for(let i=0;i<2;i++){$(`book-photo-${i}`).disabled=!reader.pages[i];}},
-    closed(){camera.clearViewOffset();readingBookPose=null;state.reading=false;$('app').dataset.reading='false';$('book-reader').hidden=true;if(readingPose){camera.position.copy(readingPose.position);state.yaw=readingPose.yaw;state.pitch=readingPose.pitch;updateCamera();}updateLocation();updateTourUI();$('scene').focus({preventScroll:true});},
+    closed(){if(vr?.active){readingPose=null;return;}camera.clearViewOffset();readingBookPose=null;state.reading=false;$('app').dataset.reading='false';$('book-reader').hidden=true;if(readingPose){camera.position.copy(readingPose.position);state.yaw=readingPose.yaw;state.pitch=readingPose.pitch;updateCamera();}updateLocation();updateTourUI();$('scene').focus({preventScroll:true});},
   },reduced,constrained);
   $('album-list').replaceChildren();
   for(const album of albums){const b=document.createElement('button');b.className='album-choice';b.textContent=album.name;const detail=document.createElement('span');detail.textContent=`${album.photoIds.length} artworks · Read on the desk`;b.append(detail);b.onclick=()=>{closeDialog('albums-dialog');enter();books.open(album);};$('album-list').append(b);}

@@ -12,7 +12,7 @@ export function createBooks(scene,albums,photos,getTexture,hooks,reduced,bounded
   albums.forEach((album,i)=>{
     const group=new THREE.Group();group.position.set(layout.standing[i].x,1.04,layout.standing[i].z);scene.add(group);closed.set(album.id,group);
     const width=layout.standing[i].width;
-    const cover=coverMats[i%coverMats.length];box(width,.88,.64,0,.44,0,cover,group);box(width*.76,.79,.55,0,.44,-.005,cream,group);
+    const cover=coverMats[i%coverMats.length];const body=box(width,.88,.64,0,.44,0,cover,group);body.userData.album=album;pickables.push(body);box(width*.76,.79,.55,0,.44,-.005,cream,group);
     const spine=box(width-.01,.88,.045,0,.44,-.325,cover,group);spine.userData.album=album;pickables.push(spine);
     const canvas=document.createElement('canvas');canvas.width=256;canvas.height=1024;const ctx=canvas.getContext('2d');ctx.translate(128,512);ctx.rotate(-Math.PI/2);ctx.fillStyle='#fff8e9';ctx.font='58px Georgia';ctx.textAlign='center';ctx.fillText(album.name,0,18,910);
     const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;const label=new THREE.Mesh(new THREE.PlaneGeometry(width*.82,.8),new THREE.MeshBasicMaterial({map:texture,transparent:true}));label.position.set(0,.44,-.351);label.rotation.y=Math.PI;label.userData.album=album;group.add(label);pickables.push(label);
@@ -39,7 +39,7 @@ export function createBooks(scene,albums,photos,getTexture,hooks,reduced,bounded
     try{const prepared=await spreads.prepare(album,0);if(ticket!==request)return;reader.open(album);closed.get(album.id).visible=false;openGroup.visible=true;openGroup.scale.setScalar(reduced?1:.02);animation=reduced?null:{kind:'open',t:0};hooks.opened(album,layout.open);paint(prepared);spreads.warm(album,0);}catch{hooks.loading?.('The album could not load. Please try again.');}finally{preparing=false;}
   }
   function close(){
-    if(!reader.album)return;const id=reader.album.id;reader.close();request++;preparing=false;flipPivot.visible=false;flipPivot.rotation.z=0;animation={kind:'close',t:reduced?1:0,id};hooks.changed(reader);
+    if(!reader.album){request++;preparing=false;return;}const id=reader.album.id;reader.close();request++;preparing=false;flipPivot.visible=false;flipPivot.rotation.z=0;animation={kind:'close',t:reduced?1:0,id};hooks.changed(reader);
   }
   async function turn(direction){
     if(!reader.album||animation||preparing)return;

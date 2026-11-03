@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import {immersiveSupported,teleportLanding,floorLanding,fittedArtwork} from '../src/vr-policy.js';
-import {canWalk} from '../src/building.js';
+import {immersiveSupported,teleportLanding,floorLanding,fittedArtwork,walkingLanding} from '../src/vr-policy.js';
+import {canWalk,walkSurface} from '../src/building.js';
 import {createVR} from '../src/vr.js';
 
 test('VR capability checks fail closed and floor destinations use real collision geometry',async()=>{
@@ -90,4 +90,31 @@ test('right stick rotates around head, bounds tilt, and preserves room-scale tra
  for(let i=0;i<100;i++)f.vr.update(.05);
  assert.ok(f.vr.headPosition().distanceTo(before)<1e-8);assert.ok(Math.abs(f.vr.rig.rotation.x-Math.PI/6)<1e-8);
  source.gamepad.axes[3]=0;const rotation=f.vr.rig.quaternion.clone();f.vr.update(.05);assert.deepEqual(rotation.toArray(),f.vr.rig.quaternion.toArray());await f.vr.exit();
+});
+
+
+test('either controller can select a book and turn either page while locomotion remains enabled',async()=>{
+ const f=fixture();let opened=0,turned=0,closed=0;
+ const target=new THREE.Mesh(new THREE.PlaneGeometry(1,1),new THREE.MeshBasicMaterial());target.position.set(0,1.6,-2);target.userData.album={id:'book'};f.scene.add(target);
+ f.hooks.bookTargets=()=>[target];f.hooks.openBook=()=>opened++;f.hooks.turnBook=d=>turned+=d;f.hooks.closeBook=()=>closed++;
+ await f.vr.enter();f.vr.update(.016);f.vr.menu.visible=false;
+ for(const [i,handedness] of ['left','right'].entries()){const c=f.controllers[i];c.position.set(0,1.6,0);c.dispatchEvent({type:'connected',data:{handedness,gamepad:{axes:[0,0,0,0]}}});}
+ f.scene.updateMatrixWorld(true);f.controllers[0].dispatchEvent({type:'select'});assert.equal(opened,1);
+ delete target.userData.album;target.userData.turnPage=1;f.controllers[1].dispatchEvent({type:'select'});assert.equal(turned,1);
+ target.userData.turnPage=-1;f.controllers[0].dispatchEvent({type:'select'});assert.equal(turned,0);
+ f.controllers[0].userData.xrSource.gamepad.axes[3]=-1;const start=f.vr.headPosition();f.vr.update(.05);assert.ok(f.vr.headPosition().z<start.z);
+ await f.vr.exit();assert.equal(closed,1);
+});
+
+test('thumbstick stair walking follows both switchback flights up and down on both levels',async()=>{
+ const f=fixture();f.hooks.feet=()=>({x:5.5,y:0,z:3.45});f.hooks.walkSurface=(x,z,y)=>walkingLanding(x,z,y,walkSurface);
+ await f.vr.enter();f.vr.update(.016);const source={handedness:'left',gamepad:{axes:[0,0,0,0]}};f.controllers[0].dispatchEvent({type:'connected',data:source});
+ // Fixture headset has a .3 m room-scale offset, so virtual head starts at x=5.8.
+ async function go(x,z,height){
+  for(let i=0;i<500;i++){const p=f.vr.headPosition(),dx=x-p.x,dz=z-p.z;if(Math.hypot(dx,dz)<.035)break;const amount=Math.max(.001,Math.hypot(dx,dz));source.gamepad.axes[2]=dx/amount;source.gamepad.axes[3]=dz/amount;f.vr.update(.02);}
+  source.gamepad.axes[2]=source.gamepad.axes[3]=0;const p=f.vr.headPosition();assert.ok(Math.hypot(p.x-x,p.z-z)<.07,JSON.stringify(p));assert.ok(Math.abs(p.y-1.6-height)<.1,JSON.stringify(p));
+ }
+ for(let floor=0;floor<2;floor++){await go(5.8,-3.67,floor*6+3);await go(8.2,-3.67,floor*6+3);await go(8.2,3.7,floor*6+6);if(floor===0)await go(5.8,3.7,6);}
+ for(let floor=1;floor>=0;floor--){await go(8.2,-3.67,floor*6+3);await go(5.8,-3.67,floor*6+3);await go(5.8,3.7,floor*6);if(floor===1)await go(8.2,3.7,6);}
+ await f.vr.exit();
 });
