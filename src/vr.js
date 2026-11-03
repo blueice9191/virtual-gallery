@@ -3,18 +3,18 @@ import { textMesh } from './world.js';
 import { artworkTitle } from './artwork-title.js';
 import { teleportLanding,floorLanding,fittedArtwork } from './vr-policy.js';
 
-// The headset owns camera pose. Only the rig moves, in discrete teleports/snap turns.
+// The headset owns camera pose. Only the rig moves for virtual navigation.
 export function createVR({scene,renderer,camera,button,xr=globalThis.navigator?.xr,hooks,makeText=textMesh}){
   const rig=new THREE.Group();rig.name='VR player rig';scene.add(rig);rig.add(camera);
   const menu=new THREE.Group(),viewer=new THREE.Group();menu.name='VR menu';viewer.name='VR artwork viewer';scene.add(menu,viewer);menu.visible=viewer.visible=false;
   const panelTargets=[],viewerTargets=[],controllers=[],ray=new THREE.Raycaster(),head=new THREE.Vector3(),forward=new THREE.Vector3(),rotation=new THREE.Matrix4();
   const marker=new THREE.Mesh(new THREE.RingGeometry(.16,.23,32),new THREE.MeshBasicMaterial({color:'#4baf9c',side:THREE.DoubleSide}));marker.rotation.x=-Math.PI/2;marker.visible=false;scene.add(marker);
   const curtain=new THREE.Mesh(new THREE.PlaneGeometry(10,10),new THREE.MeshBasicMaterial({color:'#000',transparent:true,opacity:0,depthTest:false,depthWrite:false}));curtain.position.z=-.15;curtain.renderOrder=10000;camera.add(curtain);
-  let generation=0;
+  let generation=0,groundY=0,lookPitch=0;
   let active=false,starting=false,busy=false,saved=null,photoTicket=0,menuPending=false,photoTexture=null;
   const text=(label,w,h)=>makeText(label,w,h,60,'#263b32','#f8f9f6');
   const transitionLabel=text('Preparing gallery…',.18,.025);transitionLabel.position.z=-.14;transitionLabel.material.depthTest=false;transitionLabel.material.depthWrite=false;transitionLabel.renderOrder=10001;transitionLabel.visible=false;camera.add(transitionLabel);
-  const hint=text('Point + select: teleport / view art\nSqueeze: close artwork / bring menu',1.8,.23);hint.position.y=.28;menu.add(hint);
+  const hint=text('Left stick: move · Right stick: look\nTrigger: teleport / art · Squeeze: menu',1.8,.23);hint.position.y=.28;menu.add(hint);
   function control(label,x,y,action){const mesh=text(label,.52,.17);mesh.position.set(x,y,0);mesh.userData.vrAction=action;menu.add(mesh);panelTargets.push(mesh);return mesh;}
   for(let floor=0;floor<3;floor++)control(`Floor ${floor+1}`,(floor-1)*.59,0,()=>teleport(floorLanding(floor)));
   control('Close artwork',-.59,-.23,()=>closeArtwork());control('Exit VR',.59,-.23,()=>exit());
@@ -26,9 +26,11 @@ export function createVR({scene,renderer,camera,button,xr=globalThis.navigator?.
   // World-locked UI remains legible even when opened near a gallery wall.
   for(const child of menu.children){child.material.depthTest=false;child.material.depthWrite=false;child.renderOrder=8000;}
   for(const child of viewer.children){child.material.depthTest=false;child.material.depthWrite=false;child.renderOrder=child===backing?9000:child===image?9001:9002;}
-  function headPosition(){renderer.xr.getCamera().getWorldPosition(head);return head.clone();}
+  // The XR ArrayCamera is not parented to the rig. Its getWorldPosition()
+  // recomputes matrixWorld without the rig offset; use the parented camera.
+  function headPosition(){camera.getWorldPosition(head);return head.clone();}
   function place(group,distance,vertical=0){
-    const position=headPosition();renderer.xr.getCamera().getWorldDirection(forward);forward.y=0;if(forward.lengthSq()<.001)forward.set(0,0,-1);forward.normalize();
+    const position=headPosition();camera.getWorldDirection(forward);forward.y=0;if(forward.lengthSq()<.001)forward.set(0,0,-1);forward.normalize();
     group.position.copy(position).addScaledVector(forward,distance);group.position.y+=vertical;group.lookAt(position.x,group.position.y,position.z);group.updateMatrixWorld(true);
   }
   function disposeMap(texture){texture?.dispose();}
@@ -49,7 +51,7 @@ export function createVR({scene,renderer,camera,button,xr=globalThis.navigator?.
     try{
       await hooks.prepareLanding?.(landing);
       if(!active||generation!==requestGeneration)return;
-      const current=headPosition();rig.position.x+=landing.x-current.x;rig.position.z+=landing.z-current.z;rig.position.y=landing.y;rig.updateMatrixWorld(true);renderer.xr.updateCamera(camera);menu.visible=true;menuPending=true;
+      const current=headPosition();rig.position.x+=landing.x-current.x;rig.position.z+=landing.z-current.z;rig.position.y+=landing.y-groundY;groundY=landing.y;rig.updateMatrixWorld(true);renderer.xr.updateCamera(camera);menu.visible=true;menuPending=true;
     }catch{if(generation===requestGeneration){hooks.error('The destination could not be prepared. Please try again.');menu.visible=true;menuPending=true;}}
     finally{if(generation===requestGeneration){busy=false;transitionLabel.visible=false;}}
   }
@@ -89,7 +91,7 @@ export function createVR({scene,renderer,camera,button,xr=globalThis.navigator?.
       // Request directly inside the click activation; never enter VR automatically.
       const session=await xr.requestSession('immersive-vr',{requiredFeatures:['local-floor']});
       const feet=hooks.feet();saved={position:camera.position.clone(),quaternion:camera.quaternion.clone(),scale:camera.scale.clone(),fov:camera.fov,aspect:camera.aspect,shadows:renderer.shadowMap.enabled};
-      rig.position.set(feet.x,feet.y,feet.z);rig.rotation.y=hooks.yaw();camera.position.set(0,0,0);camera.rotation.set(0,0,0);renderer.shadowMap.enabled=false;generation++;active=true;menuPending=true;menu.visible=true;hooks.changed(true);
+      groundY=feet.y;lookPitch=0;rig.position.set(feet.x,feet.y,feet.z);rig.rotation.set(0,hooks.yaw(),0);camera.position.set(0,0,0);camera.rotation.set(0,0,0);renderer.shadowMap.enabled=false;generation++;active=true;menuPending=true;menu.visible=true;hooks.changed(true);
       try{await renderer.xr.setSession(session);renderer.xr.setFoveation?.(.5);}catch(error){await session.end().catch(()=>{});throw error;}
       if(active){button.textContent='Exit VR';controllers.forEach(v=>v.line.visible=!!v.controller.userData.xrSource);}
     }catch{restore();hooks.error('VR could not start. Open the HTTPS gallery directly in a WebXR-compatible headset browser and allow the session.');}
@@ -106,11 +108,27 @@ export function createVR({scene,renderer,camera,button,xr=globalThis.navigator?.
       if(!controller.userData.xrSource)continue;const hit=point(controller);line.scale.z=hit?.distance||4;
       const landing=hit&&hooks.floors().includes(hit.object)&&teleportLanding(hit.point,hooks.canStand);
       if(landing&&!viewer.visible&&!busy){marker.position.set(landing.x,landing.y+.025,landing.z);marker.visible=true;}
-      const axes=controller.userData.xrSource.gamepad?.axes||[],axis=axes.length>=4?axes[2]:axes[0]||0;
-      if(Math.abs(axis)<.25)controller.userData.snapReady=true;
-      if(Math.abs(axis)>.7&&controller.userData.snapReady&&!busy){
-        controller.userData.snapReady=false;const center=headPosition(),angle=-Math.sign(axis)*Math.PI/6;
-        rig.position.sub(center).applyAxisAngle(new THREE.Vector3(0,1,0),angle).add(center);rig.rotation.y+=angle;rig.updateMatrixWorld(true);renderer.xr.updateCamera(camera);
+      const source=controller.userData.xrSource,axes=source.gamepad?.axes||[];
+      const stickX=axes.length>=4?axes[2]:axes[0]||0,stickY=axes.length>=4?axes[3]:axes[1]||0;
+      const dead=v=>Math.abs(v)<.18?0:Math.sign(v)*(Math.abs(v)-.18)/.82;
+      if(!busy&&!viewer.visible&&source.handedness==='left'){
+        camera.getWorldDirection(forward);forward.y=0;if(forward.lengthSq()<.001)forward.set(0,0,-1);forward.normalize();
+        const right=new THREE.Vector3(-forward.z,0,forward.x),delta=forward.clone().multiplyScalar(-dead(stickY)).addScaledVector(right,dead(stickX));
+        if(delta.length()>1)delta.normalize();delta.multiplyScalar(1.6*Math.min(dt,.05));
+        const steps=Math.max(1,Math.ceil(delta.length()/.04));
+        for(let i=0;i<steps;i++)for(const axis of ['x','z']){
+          const here=headPosition(),next={x:here.x,y:groundY,z:here.z};next[axis]+=delta[axis]/steps;
+          if(teleportLanding(next,hooks.canStand)){rig.position[axis]+=delta[axis]/steps;rig.updateMatrixWorld(true);renderer.xr.updateCamera(camera);}
+        }
+      }
+      if(!busy&&source.handedness==='right'){
+        const yaw=-dead(stickX)*1.2*Math.min(dt,.05),nextPitch=THREE.MathUtils.clamp(lookPitch-dead(stickY)*.8*Math.min(dt,.05),-Math.PI/6,Math.PI/6),pitch=nextPitch-lookPitch;
+        if(yaw||pitch){
+          const center=headPosition(),up=new THREE.Vector3(0,1,0),turn=new THREE.Quaternion().setFromAxisAngle(up,yaw);
+          camera.getWorldDirection(forward);const right=new THREE.Vector3().crossVectors(forward,up).normalize();
+          turn.multiply(new THREE.Quaternion().setFromAxisAngle(right,pitch));
+          rig.position.sub(center).applyQuaternion(turn).add(center);rig.quaternion.premultiply(turn);lookPitch=nextPitch;rig.updateMatrixWorld(true);renderer.xr.updateCamera(camera);
+        }
       }
     }
   }

@@ -52,16 +52,42 @@ test('a pending artwork load cannot leak a texture into an ended VR session',asy
   assert.equal(disposed,true);assert.equal(f.vr.viewer.visible,false);
 });
 
-test('pointing cannot teleport through an occluding wall and held sticks snap only once',async()=>{
+test('pointing cannot teleport through an occluding wall and right stick turns until released',async()=>{
  const f=fixture(),floor=new THREE.Mesh(new THREE.PlaneGeometry(20,20),new THREE.MeshBasicMaterial({side:THREE.DoubleSide}));floor.rotation.x=-Math.PI/2;f.scene.add(floor);f.hooks.floors=()=>[floor];
  const wall=new THREE.Mesh(new THREE.PlaneGeometry(3,3),new THREE.MeshBasicMaterial({side:THREE.DoubleSide}));wall.position.set(0,1,-.5);f.scene.add(wall);f.hooks.occluders=()=>[wall];
- await f.vr.enter();f.vr.update(.016);f.vr.menu.visible=false;const c=f.controllers[0],source={gamepad:{axes:[0,0,0,0]}};c.position.set(0,1.6,0);c.rotation.x=-Math.PI/4;c.dispatchEvent({type:'connected',data:source});f.scene.updateMatrixWorld(true);
+ await f.vr.enter();f.vr.update(.016);f.vr.menu.visible=false;const c=f.controllers[0],source={handedness:'right',gamepad:{axes:[0,0,0,0]}};c.position.set(0,1.6,0);c.rotation.x=-Math.PI/4;c.dispatchEvent({type:'connected',data:source});f.scene.updateMatrixWorld(true);
  c.dispatchEvent({type:'select'});await Promise.resolve();assert.equal(f.vr.rig.position.z,0);
  f.hooks.occluders=()=>[];f.scene.remove(wall);c.dispatchEvent({type:'select'});await Promise.resolve();await Promise.resolve();assert.ok(f.vr.rig.position.z< -1);
- source.gamepad.axes[2]=1;f.vr.update(.016);const turn=f.vr.rig.rotation.y;f.vr.update(.016);assert.equal(f.vr.rig.rotation.y,turn);
- source.gamepad.axes[2]=0;f.vr.update(.016);source.gamepad.axes[2]=1;f.vr.update(.016);assert.ok(Math.abs(f.vr.rig.rotation.y-turn)> .5);await f.vr.exit();
+ source.gamepad.axes[2]=1;f.vr.update(.016);const turn=f.vr.rig.rotation.y;f.vr.update(.016);assert.ok(f.vr.rig.rotation.y<turn);
+ source.gamepad.axes[2]=0;f.vr.update(.016);source.gamepad.axes[2]=1;f.vr.update(.016);assert.ok(Math.abs(f.vr.rig.rotation.y-turn)> .02);await f.vr.exit();
 });
 
 test('an unfinished teleport from an ended session cannot relocate a new session',async()=>{
  let release;const f=fixture();f.hooks.prepareLanding=()=>new Promise(resolve=>release=resolve);await f.vr.enter();f.vr.update(.016);const pending=f.vr.teleport({x:11,y:12,z:4});await f.vr.exit();await f.vr.enter();f.vr.update(.016);release();await pending;assert.equal(f.vr.rig.position.y,0);assert.equal(f.vr.rig.position.z,0);await f.vr.exit();
+});
+
+
+test('left stick moves head-relative, releases to stop, and collision blocks movement',async()=>{
+ const f=fixture();await f.vr.enter();f.vr.update(.016);
+ const source={handedness:'left',gamepad:{axes:[0,0,0,-1]}};
+ f.controllers[0].dispatchEvent({type:'connected',data:source});
+ const before=f.vr.headPosition();f.vr.update(.05);assert.ok(f.vr.headPosition().z<before.z-.07);
+ source.gamepad.axes[3]=0;const stopped=f.vr.headPosition();f.vr.update(.05);assert.deepEqual(f.vr.headPosition(),stopped);
+ source.gamepad.axes[2]=1;f.vr.update(.05);assert.ok(f.vr.headPosition().x>stopped.x+.07);
+ f.hooks.canStand=()=>false;const blocked=f.vr.headPosition();f.vr.update(.05);assert.deepEqual(f.vr.headPosition(),blocked);await f.vr.exit();
+});
+
+test('unparented XR camera cannot reset the world floor used by photo streaming',async()=>{
+ const f=fixture();const arrayCamera=new THREE.ArrayCamera();arrayCamera.position.set(.3,1.6,0);f.renderer.xr.getCamera=()=>arrayCamera;
+ await f.vr.enter();f.vr.update(.016);
+ for(const floor of [1,2,0]){await f.vr.teleport({x:11,y:floor*6,z:4});f.vr.update(.016);const position=f.vr.headPosition();assert.ok(Math.abs(position.y-(floor*6+1.6))<1e-8);assert.ok(Math.abs(position.x-11)<1e-8);}
+ await f.vr.exit();
+});
+
+test('right stick rotates around head, bounds tilt, and preserves room-scale tracking',async()=>{
+ const f=fixture();await f.vr.enter();f.vr.update(.016);const before=f.vr.headPosition();
+ const source={handedness:'right',gamepad:{axes:[0,0,0,-1]}};f.controllers[1].dispatchEvent({type:'connected',data:source});
+ for(let i=0;i<100;i++)f.vr.update(.05);
+ assert.ok(f.vr.headPosition().distanceTo(before)<1e-8);assert.ok(Math.abs(f.vr.rig.rotation.x-Math.PI/6)<1e-8);
+ source.gamepad.axes[3]=0;const rotation=f.vr.rig.quaternion.clone();f.vr.update(.05);assert.deepEqual(rotation.toArray(),f.vr.rig.quaternion.toArray());await f.vr.exit();
 });

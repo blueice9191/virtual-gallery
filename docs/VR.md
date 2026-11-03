@@ -10,7 +10,8 @@ Virtual Gallery can request an immersive WebXR session in a compatible headset b
 - Select a wall artwork to open a world-locked floating close-up. It preserves the artwork's proportions and loads an image bounded at 2048 pixels. Select Close artwork to return. Only one close-up texture is retained.
 - Squeeze either controller to close an artwork or bring the menu in front of you.
 - Use Floor 1, Floor 2, or Floor 3 on the in-world menu to teleport to a validated balcony/atrium landing. Teleporting to stair treads is disabled; use flat floors or these shortcuts.
-- Push the thumbstick left/right for a discrete 30-degree snap turn. Release it toward center before another turn. There is no continuous joystick locomotion in this first version.
+- Left Quest thumbstick: move forward/backward and strafe relative to your horizontal viewing direction (1.6 m/s), with wall, furniture and floor-edge collision checks. Use floor buttons between levels.
+- Right Quest thumbstick: smoothly turn left/right and adjust vertical view tilt (up to 30 degrees each way). Release to stop. Natural head tracking and physical walking remain available.
 - Select Exit VR in the in-world menu, or use the headset's system exit. The normal browser camera and controls return to where VR was entered.
 
 The first interaction target is a controller-based headset such as Meta Quest. Other WebXR browsers may expose standard selection rays, but device-specific hand/gaze interactions have not been validated. Full hand tracking and hand models are not implemented.
@@ -23,14 +24,14 @@ When immersive VR support is detected, the gallery uses its bounded texture path
 
 ## Verification status
 
-Automated tests cover runtime capability detection, actual museum landing geometry, wall occlusion, controller selection, snap-turn debouncing, session camera restoration and stale image disposal. These tests inject an XR session/controller runtime around real Three.js scene objects; they do not validate stereoscopic output, tracking, physical comfort, browser permissions or hardware performance.
+Automated tests cover runtime capability detection, actual museum landing geometry, wall occlusion, controller selection, handed joystick movement/turning, upper-floor world coordinates, session camera restoration and stale image disposal. These tests inject an XR session/controller runtime around real Three.js scene objects; they do not validate stereoscopic output, tracking, physical comfort, browser permissions or hardware performance.
 
-This release has not yet been verified on a physical headset. Please check on the target device before describing it as production-tested VR:
+The owner verified initial room-scale VR on Meta Quest 2. The joystick and upper-floor loading fixes still need a headset check. Please check on the target device before describing it as production-tested VR:
 
 1. Entry and exit, including ending the session from the headset system menu.
 2. Head tracking and readable menu orientation.
 3. Teleports on each floor, rejected walls/voids/stairs, and all three floor shortcuts.
-4. Snap turns that stop after each stick press.
+4. Left-stick movement, collision stops, and right-stick horizontal/vertical looking.
 5. Artwork opening, closing and reopening; accurate proportions and no stale images.
 6. Texture loading, responsiveness and sustained performance across all floors.
 7. Desktop/mobile behavior after VR exit or a denied session request.

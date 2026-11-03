@@ -16,3 +16,11 @@ test('stream releases distant textures, bounds concurrency, and disposes obsolet
 });
 
 test('only favorites-panel textures use the higher mobile resolution',()=>{assert.equal(wallTextureSize({slot:{area:'favorites'}}),2048);assert.equal(wallTextureSize({slot:{area:'corridor'}}),768);assert.equal(wallTextureSize(),768);});
+
+
+test('each VR floor arrival prepares its own displays without retaining the previous floor',async()=>{
+ const entries=Array.from({length:3},(_,floor)=>({photo:{id:floor},slot:{x:11,z:4,y:floor*6+2},material:{},group:{visible:false}}));
+ const stream=createWallStream(async photo=>({id:photo.id}),()=>{});
+ for(const floor of [0,1,2,0]){stream.update(nearbyDisplays(entries,{x:11,z:4,y:floor*6+1.6}));await stream.ready();assert.equal(stream.size,1);for(let i=0;i<3;i++)assert.equal(entries[i].group.visible,i===floor);}
+ stream.dispose();
+});
