@@ -136,3 +136,8 @@ Native fullscreen hides the gallery navigation. Move the pointer to the top edge
 ## Experimental headset VR
 
 Compatible headset browsers can enter immersive WebXR VR, with controller pointers, safe floor teleportation, floor shortcuts, 30° snap turning, floating artwork close-ups, and an in-world Exit VR control. Tours and overhead album viewing remain outside VR. See [VR controls, requirements and verification status](docs/VR.md). Real-headset testing is still required; automated session tests do not establish hardware performance or comfort.
+
+
+## Architecture
+
+An original twelve-sided atrium is surrounded by flat-walled galleries with shallow vaulted ceilings, narrow crown diffusers and paired reflector wings inspired by the Kimbell Art Museum’s approach to soft light. Panorama rooms have two vault bays. The procedural structure preserves the three-floor navigation and uses shared materials without per-room lighting passes, for browser and headset efficiency. This is an original interpretation, not a reproduction or imported museum asset.

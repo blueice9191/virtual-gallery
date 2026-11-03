@@ -1,3 +1,4 @@
+import {addVaultedRoom,createVaultMaterials} from './vaults.js';
 import { createStatue } from './statue.js';
 import { galleryFont } from './brand.js';
 import * as THREE from 'three';
@@ -24,14 +25,13 @@ export function buildWorld(scene,renderer,branding){
   }
   function wall(a,b,h,y,mat=white,depth=.22){const m=box(Math.hypot(b.x-a.x,b.z-a.z),h,depth,(a.x+b.x)/2,y,(a.z+b.z)/2,mat);m.rotation.y=-Math.atan2(b.z-a.z,b.x-a.x);return m;}
   function rail(a,b,r=.025){const va=new THREE.Vector3(a.x,a.y,a.z),vb=new THREE.Vector3(b.x,b.y,b.z),delta=vb.clone().sub(va);const m=new THREE.Mesh(new THREE.CylinderGeometry(r,r,delta.length(),6),metal);m.position.copy(va).add(vb).multiplyScalar(.5);m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),delta.normalize());m.userData.static=true;root.add(m);return m;}
-  const ceilingMat=new THREE.MeshStandardMaterial({color:'#f1f1eb',side:THREE.DoubleSide,roughness:1});
+  const vaultMaterials=createVaultMaterials();
   for(const f of floors){
     root=new THREE.Group();root.position.y=f.base;scene.add(root);groups.push(root);
     polygon(ring,0,oak,f.floor?upperVoid:null);
     if(f.floor)polygon([{x:4.8,z:3.2},{x:13,z:3.2},{x:13,z:4.7},{x:4.8,z:4.7}],.005);
     for(const r of rooms.filter(r=>r.floor===f.floor)){
-      polygon(r.polygon,0);polygon(r.polygon,4.85,ceilingMat,null,false);
-      const c=polar(17,r.angle),panel=box(f.panorama?4.5:2.8,.025,1.5,c.x,4.7,c.z,new THREE.MeshBasicMaterial({color:'#fffdf4'}));panel.rotation.y=-r.angle;
+      polygon(r.polygon,0);addVaultedRoom(root,r,vaultMaterials);
       const bench=benchLayout(r),b=bench.center;const seat=box(bench.length,.16,bench.depth,b.x,.48,b.z,wood);seat.rotation.y=bench.rotation;
       for(const foot of bench.legs){const leg=box(.12,.4,.35,foot.x,.2,foot.z,metal);leg.rotation.y=bench.rotation;}
       const sign=textMesh(r.name,Math.min(3.7,f.panorama?5:3.7),.43,65),sp=polar(12.4,r.angle);sign.position.set(sp.x,3.55,sp.z);sign.rotation.y=Math.atan2(-sp.x,-sp.z);root.add(sign);roomSigns.set(r.id,sign);
